@@ -71,20 +71,20 @@ def select_partition ():
     print("Found Block Devices:");
     for i in range(len(show_drives)):
         print("-> " + str(show_drives[i]));
-        while(True):
-            print("\nOn which partition should I update Ventoy .iso images?")
-            qpartition = input("Partition: ");
-            if qpartition == "":
-                print("Are you drunk? You should type something.");
+    while(True):
+        print("\nOn which partition should I update Ventoy .iso images?")
+        qpartition = input("Partition: ");
+        if qpartition == "":
+            print("Are you drunk? You should type something.");
+            continue;
+        else:
+            if not str(qpartition) in show_drives:
+                print("WTF? Type in a valid parititon!");
                 continue;
             else:
-                if not str(qpartition) in show_drives:
-                    print("WTF? Type in a valid parititon!");
-                    continue;
-                else:
-                    print("\nUsing partition: " + str(qpartition));
-                    mount_device(str(qpartition));
-                    break;
+                print("\nUsing partition: " + str(qpartition));
+                mount_device(str(qpartition));
+                break;
 
 def mount_device (partition):
     # create temporary directory
