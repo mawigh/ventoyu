@@ -4,15 +4,16 @@
 # sh
 
 # TODO:
-# * Auto check for ventoy partition
 # * Using lib ctypes to mount partition
+# * scan and compare with iso files on web
 
 import os
 import sys
 import tempfile
 import shutil
 import signal
-import urllib.request
+import requests
+from bs4 import BeautifulSoup
 from subprocess import check_output
 from sh import mount, umount
 
@@ -29,11 +30,10 @@ def sig_handler (signal, frame):
 
 signal.signal(signal.SIGINT, sig_handler);
 
-# ID, Name, URL
 operating_systems = {
-        "debian": [1, "Debian", "URLURLURLURL"],
-        "grml": [2, "GRML", "URLURLURLURL"],
-        "Win": [3, "Windows 10", "URLURLURLURL"]
+
+    0: {"short_name": "debian", "name": "Debian", "url": "https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/"},
+    1: {"short_name": "grml", "name": "grml", "url": "https://download.grml.org/"}
 }
 
 def check_root ():
@@ -112,14 +112,15 @@ def mount_device (partition):
 def ventoy_updater (mount_dir):
     # check for installed .iso images
     print("\n# Scanning for .iso files...");
-    iso_files = 0;
+    iso_files = [];
+    iterator = 0;
     for isofile in os.listdir(str(mount_dir)):
         if isofile.endswith(".iso"):
-            if any(os in isofile for os in operating_systems):
-                iso_files += 1;
+            if any(os in isofile for os in str(operating_systems.values())):
+                iso_files.append(str(isofile));
                 print("Found ISO: " + str(isofile));
 
-    if iso_files == 0:
+    if len(iso_files) == 0:
         print("No .iso files found :-(")
         newq = input("Do you want to download new .iso images? [y/N] ")
         
@@ -134,8 +135,17 @@ def ventoy_updater (mount_dir):
             print("Aborting...")
             sys.exit(0);
     else:
-        # try to update
-        pass;
+        # try to update iso images
+        for i in range(len(iso_files)):
+            url = operating_systems[i]["url"];
+            extension = "iso";
+            request = requests.get(url).text;
+            html_soup = BeautifulSoup(request, "html.parser");
+            iso_images = [url + '/' + node.get('href') for node in html_soup.find_all('a') if node.get('href').endswith(extension)];
+            iso_images = list(dict.fromkeys(iso_images));
+            for image in iso_images:
+                print(image);
+
 
 def start():
     check_root();
