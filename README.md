@@ -19,10 +19,10 @@ Currently supported:
 
 ## Dependencies
 
-To install the dependencies, you can use the file requirements.txt
+To install the dependencies system-wide, you can use the file requirements.txt
 
 ```bash
-python3 -m pip install -r requirements.txt
+sudo python3 -m pip install -r requirements.txt
 ```
 
 ## How to use
