@@ -8,11 +8,15 @@ https://github.com/ventoy/Ventoy
 
 ## Description
 
-https://www.crummy.com/software/BeautifulSoup/
+The script looks whether a partition with the label "ventoy" exists in the system and updates the ISO images on the partition if necessary.
+
+If there is no partition with the label "ventoy", then the user can select a partition from a list.
+
+The partition will be mounted into a temporarily created directory.
 
 ## OS Support
 
-Currently supported:
+Currently supported images:
 
 * grml: https://grml.org/
 * Debian: https://www.debian.org/
