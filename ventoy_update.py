@@ -33,7 +33,7 @@ operating_systems = {
 
     "debian": {"id": 0, "name": "Debian", "url": "https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/"},
     "grml": {"id": 1, "name": "grml", "url": "https://download.grml.org/"},
-    "ubuntu_desktop": {"id": 2, "name": "Ubuntu Desktop", "url": "https://releases.ubuntu.com/"}
+#    "ubuntu_desktop": {"id": 2, "name": "Ubuntu Desktop", "url": "https://releases.ubuntu.com/"}
 }
 
 def check_root ():
@@ -125,12 +125,13 @@ def ventoy_updater (mount_dir):
     # check for installed .iso images
     import os
     print("\n# Scanning for .iso files...");
+    time.sleep(2);
     iso_files = [];
     for isofile in os.listdir(str(mount_dir)):
         if isofile.endswith(".iso"):
             check = [ element for element in list(operating_systems.keys()) if(element in str(isofile)) ];
             if not check:
-                print("Found ISO Image: " + str(isofile) + " (Currently NOT supported)")
+                print("Found ISO Image: " + str(isofile) + " (NOT SUPPORTED YET)")
                 continue;
 
             iso_files.append(str(isofile));
@@ -172,6 +173,8 @@ def ventoy_updater (mount_dir):
             sys.exit(0);
     else:
         # try to update iso images
+        print("Let's try to update your images...\n");
+        time.sleep(2);
         for value in iso_files:
             for key, val in operating_systems.items():
                 if key in value:
@@ -184,13 +187,13 @@ def ventoy_updater (mount_dir):
                     # delete duplicates
                     iso_images = list(dict.fromkeys(iso_images));
                     counter=0;
-                    print("\n#### " + str(key) + " (current: " + str(value) + ") ####");
+                    print("#### " + str(key) + " (current: " + str(value) + ") ####");
                     for image in iso_images:
                         print("[ID: " + str(counter) + "]: " + image);
                         counter+=1;
 
                     print("");
-                    qdownload = input("Type in the ID or leave empty to skip (commata-seperated): ");
+                    qdownload = input("Type in the ID to download or leave empty to skip: ");
 
                     if qdownload == "":
                         # got to next available iso image
@@ -208,7 +211,7 @@ def ventoy_updater (mount_dir):
                         if qdeleteold == "y" or qdeleteold == "Y":
                             try:
                                 os.remove(str(mount_dir) + "/" + str(value));
-                                print("OK sir. Deleted " + str(mount_dir) + "/" + str(value));
+                                print("OK sir. Deleted " + str(mount_dir) + "/" + str(value) + "\n");
                             except:
                                 print("Error: Cannot remove " + str(mount_dir) + "/" + str(value) + "!");
 
