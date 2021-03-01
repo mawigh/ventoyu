@@ -1,7 +1,5 @@
 #!/usr/bin/python3
 # Author: Marcel-Brian Wilkowsky
-# Dependencies:
-# sh
 
 # TODO:
 # * Using lib ctypes to mount partition
@@ -57,11 +55,11 @@ def check_for_ventoy ():
         check_ventoy = check_ventoy.decode("utf-8");
         # delete new line 
         check_ventoy = check_ventoy.rstrip("\n");
-        print("\nI found a partition with label 'ventoy': " + str(check_ventoy));
-        qask = input("Is " + str(check_ventoy) + " the correct partition? [Y/n]: ");
+        print("\nI found a partition with label 'ventoy': /dev/" + str(check_ventoy));
+        qask = input("Is /dev/" + str(check_ventoy) + " the correct partition? [Y/n]: ");
 
         if qask == "y" or qask == "Y" or qask == "":
-            print("\nOK. Using partition " + str(check_ventoy));
+            print("\nOK. Using partition /dev/" + str(check_ventoy));
             mount_device(str(check_ventoy));
         else:
             select_partition();
@@ -113,42 +111,67 @@ def mount_device (partition):
     print("Free: " + str(round(shutil.disk_usage(temp_dir).free/1024/1024/1024)) + "GB");
     ventoy_updater(temp_dir);
 
+def umount_device (partition):
+    print("\nTry umounting " + str(partition) + "/... Please wait!");
+    try:
+        umount(str(partition));
+        print("Successfully umounted " + str(partition));
+        return 0;
+    except:
+        print("Error: Error while umounting " + str(partition) +"! Try to umount it manually using command umount!");
+        return 1;
+
 def ventoy_updater (mount_dir):
     # check for installed .iso images
+    import os
     print("\n# Scanning for .iso files...");
     iso_files = [];
     for isofile in os.listdir(str(mount_dir)):
         if isofile.endswith(".iso"):
+            check = [ element for element in list(operating_systems.keys()) if(element in str(isofile)) ];
+            if not check:
+                print("Found ISO Image: " + str(isofile) + " (Currently NOT supported)")
+                continue;
+
             iso_files.append(str(isofile));
             print("Found ISO Image: " + str(isofile));
-
-    #not_supported_yet = list(dict.fromkeys(not_supported_yet));
     
     # find not supported isos
     print("");
-    for item in iso_files:
-        if not item in list(operating_systems.keys()):
-            print("Warning: ISO File " + str(item) + " is currently not supported!");
-            # if isofile is not supported, delete it from list
-            iso_files.remove(item);
+    #for item in iso_files:
 
+     #       print("Warning: ISO File " + str(item) + " is currently not supported!");
+            # if isofile is not supported, delete it from list
+      #      iso_files.remove(item);
+            
     if len(iso_files) == 0:
-        print("No .iso files found :-(")
+        print("\nNo .iso files found :-(")
         newq = input("Do you want to download new .iso images? [y/N] ")
         
+        iterator=0;
         if newq == "y" or newq == "Y":
-            print(operating_systems);
-            qosa = input("Please select an Operating System (comma-seperated): ");
+            for os in list(operating_systems.keys()):
+                iterator+=1;
+                print("[ID: "+str(iterator)+"]: " + str(os));
+
+            qosa = input("Please select an Operating System to download using the ID: ");
 
             if qosa == "":
                 print("No Operating System selected. Aborting...");
                 sys.exit(0);
+            #else:
+               # if not int(qosa) > len(operating_system):
+               #     sys.exit("You cannot count hmm?");
+
+                #for image in iso_images:
+                 #   print("[ID: " + str(counter) + "]: " + image);
+                  #  counter+=1;
+
         else:
             print("Aborting...")
             sys.exit(0);
     else:
         # try to update iso images
-        print("");
         for value in iso_files:
             for key, val in operating_systems.items():
                 if key in value:
@@ -161,37 +184,24 @@ def ventoy_updater (mount_dir):
                     # delete duplicates
                     iso_images = list(dict.fromkeys(iso_images));
                     counter=0;
+                    print("\n#### " + str(key) + " (current: " + str(value) + ") ####");
                     for image in iso_images:
                         print("[ID: " + str(counter) + "]: " + image);
                         counter+=1;
 
                     print("");
-                    qdownload = input("Type in the ID (commata-seperated): ");
+                    qdownload = input("Type in the ID or leave empty to skip (commata-seperated): ");
 
                     if qdownload == "":
                         # got to next available iso image
+                        print("OK.. Skipping.");
                         continue;
                     else:
                         if int(qdownload) > len(iso_images):
                             print("WTF? Are you blind?");
                             continue;
-
-                        print("nTry downloading " + iso_images[int(qdownload)] + " ...");
-
-                        download_request = requests.get(url + iso_images[int(qdownload)], stream=True, allow_redirects=True);
-                        start = time.process_time();
-                        download_length = download_request.headers.get("content-length");
-                        dl = 0;
-                        final_location = str(mount_dir) + "/" + str(iso_images[int(qdownload)]);
-                        download_file = open(final_location, "wb");
-
-                        for chunk in download_request.iter_content(1024):
-                            dl += len(chunk);
-                            download_file.write(chunk);
-                            done = int(50 * dl / int(download_length));
-                            sys.stdout.write("\r[%s%s] %s bps" % ('=' * done, ' ' * (50-done), dl//(time.process_time() - start)))
-                             
-                        print("\nTime Elapsed: " + str(time.process_time() - start) + "s\n");
+                        
+                        download_iso(mount_dir, iso_images, url, qdownload);
 
                         qdeleteold = input("May I delete the old image (" + str(value) + ")? [y/N]: ");
 
@@ -202,8 +212,27 @@ def ventoy_updater (mount_dir):
                             except:
                                 print("Error: Cannot remove " + str(mount_dir) + "/" + str(value) + "!");
 
-                        
+        umount_device(mount_dir);
         print("\nI hope you are doing good. See you!");
+
+def download_iso (mount_dir, iso_images_available, url, listselection):
+    
+    print("\nTry downloading " + iso_images_available[int(listselection)] + " ...");
+    download_request = requests.get(url + iso_images_available[int(listselection)], stream=True, allow_redirects=True);
+    start = time.process_time();
+    download_length = download_request.headers.get("content-length");
+    dl = 0;
+    final_location = str(mount_dir) + "/" + str(iso_images_available[int(listselection)]);
+    download_file = open(final_location, "wb");
+
+    for chunk in download_request.iter_content(1024):
+        dl += len(chunk);
+        download_file.write(chunk);
+        done = int(50 * dl / int(download_length));
+        sys.stdout.write("\r[%s%s] %s bps" % ("=" * done, " " * (50-done), dl//(time.process_time() - start)))
+         
+    print("\nTime Elapsed: " + str(time.process_time() - start) + "s\n");
+    download_file.close();
 
 
 def start():
