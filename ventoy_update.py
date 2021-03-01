@@ -6,6 +6,7 @@
 # TODO:
 # * Using lib ctypes to mount partition
 # * scan and compare with iso files on web
+# * check new downloaded iso files with checksum, if available
 
 import os
 import sys
@@ -13,6 +14,7 @@ import tempfile
 import shutil
 import signal
 import requests
+import time
 from bs4 import BeautifulSoup
 from subprocess import check_output
 from sh import mount, umount
@@ -25,15 +27,15 @@ temp_dir="";
 # Catch SIGINT
 def sig_handler (signal, frame):
     print("You pressed Ctrl+C! Umount partition, if mounted");
-    # UMOUNT
     sys.exit(1);
 
 signal.signal(signal.SIGINT, sig_handler);
 
 operating_systems = {
 
-    0: {"short_name": "debian", "name": "Debian", "url": "https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/"},
-    1: {"short_name": "grml", "name": "grml", "url": "https://download.grml.org/"}
+    "debian": {"id": 0, "name": "Debian", "url": "https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/"},
+    "grml": {"id": 1, "name": "grml", "url": "https://download.grml.org/"},
+    "ubuntu_desktop": {"id": 2, "name": "Ubuntu Desktop", "url": "https://releases.ubuntu.com/"}
 }
 
 def check_root ():
@@ -89,16 +91,18 @@ def select_partition ():
 def mount_device (partition):
     # create temporary directory
     temp_dir = tempfile.mkdtemp();
-    print("Using temporary directory: " + temp_dir);
+    print("Using temporary directory: " + temp_dir + "/");
     # mount ventoy partition to manage the .iso files
+    time.sleep(1);
 
     if not "dev" in str(partition):
         partition = "/dev/" + str(partition);
 
     print("\nTry mounting it...");
+    time.sleep(1);
     try: 
         mount(str(partition),str(temp_dir));
-        print("Mounted " + str(partition) + " on " + str(temp_dir) + "...");
+        print("Mounted " + str(partition) + " on " + str(temp_dir) + "/ ...");
     except:
         sys.exit("Cannot mount " + str(partition) + " partition...");
 
@@ -113,12 +117,20 @@ def ventoy_updater (mount_dir):
     # check for installed .iso images
     print("\n# Scanning for .iso files...");
     iso_files = [];
-    iterator = 0;
     for isofile in os.listdir(str(mount_dir)):
         if isofile.endswith(".iso"):
-            if any(os in isofile for os in str(operating_systems.values())):
-                iso_files.append(str(isofile));
-                print("Found ISO: " + str(isofile));
+            iso_files.append(str(isofile));
+            print("Found ISO Image: " + str(isofile));
+
+    #not_supported_yet = list(dict.fromkeys(not_supported_yet));
+    
+    # find not supported isos
+    print("");
+    for item in iso_files:
+        if not item in list(operating_systems.keys()):
+            print("Warning: ISO File " + str(item) + " is currently not supported!");
+            # if isofile is not supported, delete it from list
+            iso_files.remove(item);
 
     if len(iso_files) == 0:
         print("No .iso files found :-(")
@@ -136,15 +148,62 @@ def ventoy_updater (mount_dir):
             sys.exit(0);
     else:
         # try to update iso images
-        for i in range(len(iso_files)):
-            url = operating_systems[i]["url"];
-            extension = "iso";
-            request = requests.get(url).text;
-            html_soup = BeautifulSoup(request, "html.parser");
-            iso_images = [url + '/' + node.get('href') for node in html_soup.find_all('a') if node.get('href').endswith(extension)];
-            iso_images = list(dict.fromkeys(iso_images));
-            for image in iso_images:
-                print(image);
+        print("");
+        for value in iso_files:
+            for key, val in operating_systems.items():
+                if key in value:
+                    url = val["url"];
+                    extension = ".iso";
+                    request = requests.get(url).text;
+                    # BeautifulSoup HTML-Parser
+                    html_soup = BeautifulSoup(request, "html.parser");
+                    iso_images = [node.get("href") for node in html_soup.find_all("a") if node.get("href").endswith(extension)];
+                    # delete duplicates
+                    iso_images = list(dict.fromkeys(iso_images));
+                    counter=0;
+                    for image in iso_images:
+                        print("[ID: " + str(counter) + "]: " + image);
+                        counter+=1;
+
+                    print("");
+                    qdownload = input("Type in the ID (commata-seperated): ");
+
+                    if qdownload == "":
+                        # got to next available iso image
+                        continue;
+                    else:
+                        if int(qdownload) > len(iso_images):
+                            print("WTF? Are you blind?");
+                            continue;
+
+                        print("nTry downloading " + iso_images[int(qdownload)] + " ...");
+
+                        download_request = requests.get(url + iso_images[int(qdownload)], stream=True, allow_redirects=True);
+                        start = time.process_time();
+                        download_length = download_request.headers.get("content-length");
+                        dl = 0;
+                        final_location = str(mount_dir) + "/" + str(iso_images[int(qdownload)]);
+                        download_file = open(final_location, "wb");
+
+                        for chunk in download_request.iter_content(1024):
+                            dl += len(chunk);
+                            download_file.write(chunk);
+                            done = int(50 * dl / int(download_length));
+                            sys.stdout.write("\r[%s%s] %s bps" % ('=' * done, ' ' * (50-done), dl//(time.process_time() - start)))
+                             
+                        print("\nTime Elapsed: " + str(time.process_time() - start) + "s\n");
+
+                        qdeleteold = input("May I delete the old image (" + str(value) + ")? [y/N]: ");
+
+                        if qdeleteold == "y" or qdeleteold == "Y":
+                            try:
+                                os.remove(str(mount_dir) + "/" + str(value));
+                                print("OK sir. Deleted " + str(mount_dir) + "/" + str(value));
+                            except:
+                                print("Error: Cannot remove " + str(mount_dir) + "/" + str(value) + "!");
+
+                        
+        print("\nI hope you are doing good. See you!");
 
 
 def start():
