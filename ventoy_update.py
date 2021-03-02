@@ -25,6 +25,7 @@ temp_dir="";
 # Catch SIGINT
 def sig_handler (signal, frame):
     print("You pressed Ctrl+C! Umount partition, if mounted");
+    abort();
     sys.exit(1);
 
 signal.signal(signal.SIGINT, sig_handler);
@@ -33,7 +34,7 @@ operating_systems = {
 
     "debian": {"id": 0, "name": "Debian", "url": "https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/"},
     "grml": {"id": 1, "name": "grml", "url": "https://download.grml.org/"},
-#    "ubuntu_desktop": {"id": 2, "name": "Ubuntu Desktop", "url": "https://releases.ubuntu.com/"}
+    "ubuntu_desktop": {"id": 2, "name": "Ubuntu Desktop", "url": "https://releases.ubuntu.com/"}
 }
 
 def check_root ():
@@ -109,6 +110,7 @@ def mount_device (partition):
     print("Total: " + str(round(shutil.disk_usage(temp_dir).total/1024/1024/1024)) + "GB");
     print("Used: " + str(round(shutil.disk_usage(temp_dir).used/1024/1024/1024)) + "GB");
     print("Free: " + str(round(shutil.disk_usage(temp_dir).free/1024/1024/1024)) + "GB");
+    time.sleep(1);
     ventoy_updater(temp_dir);
 
 def umount_device (partition):
@@ -121,11 +123,62 @@ def umount_device (partition):
         print("Error: Error while umounting " + str(partition) +"! Try to umount it manually using command umount!");
         return 1;
 
+def abort (*argv):
+    print("Aborting...");
+    for arg in argv:
+        umount_device(arg);
+
+def select_os ():
+    available = {};
+    iterator = 0;
+    for os in list(operating_systems.keys()):
+        print("[ID: "+str(iterator)+"]: " + str(os));
+        available[iterator] = str(os);
+        iterator += 1;
+
+    qosa = input("Enter the ID to download: ");
+
+    if qosa == "":
+        abort(mount_dir);
+    else:
+        if int(qosa) > len(operating_systems):
+            sys.exit("You cannot count hmm?");
+        
+        url = str(operating_systems[str(available[int(qosa)])]["url"]);
+
+        extension = ".iso";
+        request = requests.get(url).text;
+        # BeautifulSoup HTML-Parser
+        html_soup = BeautifulSoup(request, "html.parser");
+        iso_images = [node.get("href") for node in html_soup.find_all("a") if node.get("href").endswith(extension)];
+        # delete duplicates
+        iso_images = list(dict.fromkeys(iso_images));
+        counter=0;
+        for image in iso_images:
+            print("[ID: " + str(counter) + "]: " + image);
+            counter+=1;
+
+        print("");
+        qselect = input("Type in the ID to download or leave empty to skip: ");
+
+        if qselect == "":
+            # quit, if empty
+            print("OK.. Skipping.");
+            abort();
+        else:
+            if int(qselect) > len(iso_images):
+                print("WTF? Are you blind?");
+                abort();
+
+        del available;
+        return str(url), str(iso_images[int(qselect)]);
+
+
 def ventoy_updater (mount_dir):
     # check for installed .iso images
     import os
     print("\n# Scanning for .iso files...");
-    time.sleep(2);
+    time.sleep(3);
     iso_files = [];
     for isofile in os.listdir(str(mount_dir)):
         if isofile.endswith(".iso"):
@@ -136,41 +189,19 @@ def ventoy_updater (mount_dir):
 
             iso_files.append(str(isofile));
             print("Found ISO Image: " + str(isofile));
-    
-    # find not supported isos
-    print("");
-    #for item in iso_files:
-
-     #       print("Warning: ISO File " + str(item) + " is currently not supported!");
-            # if isofile is not supported, delete it from list
-      #      iso_files.remove(item);
             
     if len(iso_files) == 0:
         print("\nNo .iso files found :-(")
-        newq = input("Do you want to download new .iso images? [y/N] ")
+        while (True):
+            newq = input("Do you want to download new .iso images? [y/N] ")
         
-        iterator=0;
-        if newq == "y" or newq == "Y":
-            for os in list(operating_systems.keys()):
-                iterator+=1;
-                print("[ID: "+str(iterator)+"]: " + str(os));
-
-            qosa = input("Please select an Operating System to download using the ID: ");
-
-            if qosa == "":
-                print("No Operating System selected. Aborting...");
+            if newq == "y" or newq == "Y":
+                url, iso = select_os()
+                
+                download_file(mount_dir, iso, url);
+            else:
+                abort(mount_dir);
                 sys.exit(0);
-            #else:
-               # if not int(qosa) > len(operating_system):
-               #     sys.exit("You cannot count hmm?");
-
-                #for image in iso_images:
-                 #   print("[ID: " + str(counter) + "]: " + image);
-                  #  counter+=1;
-
-        else:
-            print("Aborting...")
-            sys.exit(0);
     else:
         # try to update iso images
         print("Let's try to update your images...\n");
@@ -192,6 +223,8 @@ def ventoy_updater (mount_dir):
                         print("[ID: " + str(counter) + "]: " + image);
                         counter+=1;
 
+                    print("[ID: -1]: Delete current ISO image")
+
                     print("");
                     qdownload = input("Type in the ID to download or leave empty to skip: ");
 
@@ -200,11 +233,22 @@ def ventoy_updater (mount_dir):
                         print("OK.. Skipping.");
                         continue;
                     else:
+                        if qdownload == "-1":
+                            qaskrly = input("Are you sure you want to delete " + str(value) + "? [y/N]: ");
+                            if qaskrly == "y" or qaskrly == "Y":
+                                os.remove(str(mount_dir) + "/" + str(value));
+                                print("OK. Deleted ISO File " + str(value));
+                                print("");
+                                continue;
+                            else:
+                                continue;
+
                         if int(qdownload) > len(iso_images):
                             print("WTF? Are you blind?");
                             continue;
                         
-                        download_iso(mount_dir, iso_images, url, qdownload);
+                        iso_name = iso_images[int(qdownload)];
+                        download_file(mount_dir, iso_name, url);
 
                         qdeleteold = input("May I delete the old image (" + str(value) + ")? [y/N]: ");
 
@@ -215,27 +259,37 @@ def ventoy_updater (mount_dir):
                             except:
                                 print("Error: Cannot remove " + str(mount_dir) + "/" + str(value) + "!");
 
+        while (True):
+            print("");
+            qasknew = input("Do you want to download a new ISO image? [y/N]: ");
+            if qasknew == "N" or qasknew == "n" or qasknew == "":
+                abort(mount_dir);
+                sys.exit(0);
+            else:
+                url, iso = select_os();
+                download_file(mount_dir, iso, url);
+
         umount_device(mount_dir);
         print("\nI hope you are doing good. See you!");
 
-def download_iso (mount_dir, iso_images_available, url, listselection):
+def download_file (mount_dir, iso_name, url):
     
-    print("\nTry downloading " + iso_images_available[int(listselection)] + " ...");
-    download_request = requests.get(url + iso_images_available[int(listselection)], stream=True, allow_redirects=True);
+    print("\nTry downloading " + str(iso_name) + " ...");
+    download_request = requests.get(url + str(iso_name), stream=True, allow_redirects=True);
     start = time.process_time();
     download_length = download_request.headers.get("content-length");
     dl = 0;
-    final_location = str(mount_dir) + "/" + str(iso_images_available[int(listselection)]);
-    download_file = open(final_location, "wb");
+    final_location = str(mount_dir) + "/" + str(iso_name);
+    downloaded_file = open(final_location, "wb");
 
     for chunk in download_request.iter_content(1024):
         dl += len(chunk);
-        download_file.write(chunk);
+        downloaded_file.write(chunk);
         done = int(50 * dl / int(download_length));
         sys.stdout.write("\r[%s%s] %s bps" % ("=" * done, " " * (50-done), dl//(time.process_time() - start)))
          
     print("\nTime Elapsed: " + str(time.process_time() - start) + "s\n");
-    download_file.close();
+    downloaded_file.close();
 
 
 def start():
