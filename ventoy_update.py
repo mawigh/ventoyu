@@ -34,7 +34,7 @@ operating_systems = {
 
     "debian": {"id": 0, "name": "Debian", "url": "https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/"},
     "grml": {"id": 1, "name": "grml", "url": "https://download.grml.org/"},
-    "ubuntu_desktop": {"id": 2, "name": "Ubuntu Desktop", "url": "https://releases.ubuntu.com/"}
+    #"ubuntu_desktop": {"id": 2, "name": "Ubuntu Desktop", "url": "https://releases.ubuntu.com/"}
 }
 
 def check_root ():

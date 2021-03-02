@@ -36,3 +36,12 @@ You need to run this program as user root. Otherwise it cannot mount your ventoy
 ```bash
 sudo ./ventoy_update.py
 ```
+
+## Update
+
+To update the program, just pull this repository.
+
+```bash
+git pull https://github.com/mawigh/ventoy_updater.git
+
+```
