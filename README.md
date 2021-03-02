@@ -1,4 +1,4 @@
-# Ventoy Updater
+# Ventoy ISO Updater
 
 Official Ventoy Website:
 https://www.ventoy.net/en/index.html
