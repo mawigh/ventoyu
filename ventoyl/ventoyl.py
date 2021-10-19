@@ -1,24 +1,39 @@
+# Author: Marcel-Brian Wilkowsky (mawigh)
+
 import json;
+import subprocess;
 import shutil;
 import re;
 import sys;
+import tempfile;
+import sh;
+import os;
+import logging;
 
 class ventoyl:
 
-    def __init__ (self, ventoy_device=None):
+    def __init__ (self, ventoy_device=None, debug=False):
         self.device_mounted = False;
         self.iso_images = [];
+        self.ventoy_device = ventoy_device;
         self.__easysearch = True;
+        self.device_mounted = False;
 
-        if not ventoy_device is None:
-            device = find_ventoy_device();
-            mount_ventoy_device(device);
+        if not self.ventoy_device:
+            self.find_ventoy_device();
+            if self.ventoy_device:
+                ttr = self.check_ventoy_mount();
+                self.mount_ventoy_device();
+
+        if debug:
+            logging.basicConfig(filename='example.log', encoding='utf-8', level=logging.DEBUG)
+        else:
+            logging.basicConfig(filename='example.log', encoding='utf-8', level=logging.INFO)
 
         # check url json file
 
     def find_ventoy_device (self):
-        import subprocess;
-        
+
         ls_blkd = shutil.which("lsblk");
         fdevice = "";
         if ls_blkd:
@@ -30,6 +45,7 @@ class ventoyl:
                     for child in key["children"]:
                         if re.search(search_pattern, str(child["label"])):
                             fdevice = child;
+                            logging.debug("Found Ventoy device: " + str(child));
             else:
                 return False;
 
@@ -41,36 +57,68 @@ class ventoyl:
         else:
             return False;
 
+    def check_ventoy_mount (self):
+        if not self.ventoy_device:
+            self.find_ventoy_device();
+
+        lsblk_out = subprocess.check_output(["lsblk","-Jnpo","name,mountpoint"]);
+        json_parse = json.loads(lsblk_out);
+        if isinstance(json_parse, dict):
+            for key in json_parse["blockdevices"]:
+                for child in key["children"]:
+                    if re.search(str(self.ventoy_device), str(child["name"])):
+                        if not child["mountpoint"] == None:
+                            self.device_mounted = True;
+                            self.temp_dir = child["mountpoint"];
+                            return child["mountpoint"];
+                        else:
+                            return False;
+                    else:
+                        return False;
+        else:
+            return False;
+
     def mount_ventoy_device (self):
         if not self.ventoy_device:
             return False;
+        
+        if not self.is_ventoy_mounted():
+            self.temp_dir = tempfile.mkdtemp();
+            try: 
+                mrc = sh.mount(str(self.ventoy_device),str(self.temp_dir));
+                self.device_mounted = True;
+            except sh.ErrorReturnCode_32:
+                sys.exit("You must be root to mount a device");
 
-    def list_iso_files (self, scan=False):
+    def is_ventoy_mounted (self):
+        if self.device_mounted:
+            return True;
+        else:
+            return False;
 
-        if self.ventoy_device is None:
+    def get_ventoy_mount_dir (self):
+        if self.temp_dir:
+            return self.temp_dir;
+
+    def get_iso_files (self, scan=False):
+
+        if not self.ventoy_device:
             return False;
         if not self.device_mounted:
             return False;
+    
+        if self.temp_dir:
+            for f in os.listdir(self.temp_dir):
+                if f.endswith(".iso"):
+                    self.iso_images.append(os.path.join(self.temp_dir, f));
 
-        # scan for new iso files
-        # SCAN HERE
-        if scan == True:
-            pass;
-
-        print("Found following ISO images:");
-        for i in iso_images:
-            print("+ " + i);
-        print("###########################");
+        if len(self.iso_images) >= 1:
+                return self.iso_images;
+        else:
+                return False;
 
     def downloadIso (self, url):
         pass;
 
     def deleteIso (self):
         pass;
-
-test = ventoyl();
-tt = test.find_ventoy_device();
-if tt:
-    print(tt);
-else:
-    print("Nicht gefunden :-(");

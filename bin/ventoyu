@@ -4,11 +4,122 @@
 import argparse;
 import os;
 import sys;
-import ventoyl;
+import time;
+import shutil;
+from itertools import chain;
+from ventoyl import ventoyl;
 
-#parser = argparse.ArgumentParser(description="Update ISO image found on a ventoy device");
+def load():
+    characters = "/-\|";
+    for char in characters:
+        sys.stdout.write("\r"+"wait... "+char);
+        time.sleep(.1);
+        sys.stdout.flush();
+def hr_filesize (size):
+    units = ["B", "KiB", "MiB", "GiB", "TiB", "PiB"];
+    for unit in units:
+        if size < 1024.0 or unit == "PiB":
+            break;
+        size /= 1024.0
+    return f"{size:.0f} {unit}";
 
-ventoyu_ascii = """
+class bchar:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+def main ():
+
+    parser = argparse.ArgumentParser(description="Update ISO image found on a ventoy device");
+    parser.add_argument("-l", action="store_true", help="disable Ventoy ASCII logo");
+    parser.add_argument("-v", action="store_true", help="enable verbose mode");
+    parser.add_argument("--device", help="explicit specifiy a Ventoy device (e.g. sda1)");
+
+    subparser = parser.add_subparsers(dest="command");
+
+    sinstall = subparser.add_parser("install", help="install new ISO images");
+    sinstall.add_argument("--file");
+
+    sadd = subparser.add_parser("add", help="add URL ISO sources to the JSON config file");
+    slist = subparser.add_parser("list", help="list installed ISO images");
+    sstats = subparser.add_parser("stats", help="print usage statistics");
+
+    args = parser.parse_args();
+
+    global verbose_mode;
+    verbose_mode = False;
+    if args.v:
+        verbose_mode = True;
+
+    global ventoy;
+    ventoy = ventoyl.ventoyl(None, verbose_mode);
+
+    if not args.l:
+        print(ventoyu_ascii);
+    check_root();
+    if args.device:
+        ventoy.ventoy_device = str(args.device);
+    if ventoy:
+        if not ventoy.ventoy_device:
+            sys.exit( bchar.FAIL + "Error: No Ventoy device found. Plug in your Ventoy device or specify it explicity with --device");
+    if args.command == "stats":
+        print_stats();
+    if args.command == "install":
+        install();
+    if args.command == "list":
+        listfiles();
+    if not args.command:
+        print_stats();
+        listfiles();
+
+def check_root ():
+    uid = os.getuid();
+    if not uid == 0:
+        sys.exit(bchar.FAIL + "Cannot access your Ventoy drive without root access.."+ bchar.ENDC +"\nTry again with"+ bchar.BOLD +" sudo " + " ".join(sys.argv)  + bchar.ENDC);
+    else:
+        return 0;
+
+def print_stats ():
+
+    if ventoy.ventoy_device:
+        if ventoy.temp_dir:
+            print(bchar.UNDERLINE + "Ventoy usage statistics:" + bchar.ENDC);
+            print(bchar.BOLD + bchar.HEADER + "Total: " + bchar.ENDC + str(hr_filesize(shutil.disk_usage(ventoy.temp_dir).total)));
+            print(bchar.BOLD + bchar.HEADER + "Used: " + bchar.ENDC + str(hr_filesize(shutil.disk_usage(ventoy.temp_dir).used)));
+            print(bchar.BOLD + bchar.HEADER + "Free: " + bchar.ENDC + str(hr_filesize(shutil.disk_usage(ventoy.temp_dir).free)));
+
+def install():
+    pass;
+
+def add():
+    pass;
+
+def listfiles():
+    
+    files_found = ventoy.get_iso_files();
+    
+    if files_found:
+        print(bchar.UNDERLINE + "I found following ISO images on your Ventoy device:\n" + bchar.ENDC);
+        for iso in files_found:
+            size = os.stat(str(iso)).st_size;
+            size = hr_filesize(size);
+            sizel = "";
+            if verbose_mode:
+                sizel = bchar.HEADER + " ("+ str(size) +") " + bchar.ENDC;
+            print(bchar.OKGREEN + u"\u2192 " + iso + bchar.ENDC + ""+sizel+" "+bchar.UNDERLINE+"["+str(files_found.index(iso))+"]" + bchar.ENDC);
+
+        if verbose_mode:
+            print("\nYou can use the index numbers to run an action (e.g. update)");
+    else:
+        sys.exit(bchar.WARNING + "Warning:\nNo ISO images on your Ventoy device ("+ventoy.ventoy_device+") found.\nMaybe its not a valid Ventoy device?");
+
+ventoyu_ascii = bchar.OKBLUE + """
  _    __           __              __  __
 | |  / /__  ____  / /_____  __  __/ / / /
 | | / / _ \/ __ \/ __/ __ \/ / / / / / / 
@@ -16,9 +127,6 @@ ventoyu_ascii = """
 |___/\___/_/ /_/\__/\____/\__, /\____/   
                          /____/          
 """
-print(ventoyu_ascii)
 
-ventoy = ventoyl.ventoyl();
-ventoy_path = ventoy.find_ventoy_device();
-if ventoy_path:
-    print(ventoy_path);
+if __name__ == "__main__":
+    main();

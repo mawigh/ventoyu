@@ -23,7 +23,5 @@ setup(
         "License :: OSI Approved :: GPL-3.0",
         "Operating System :: Linux",
     ],
-    package_dir={"", "src"},
-    packages=setuptools.find_packages(where="src"),
     scripts=["bin/ventoyu"],
 )
