@@ -3,16 +3,22 @@
 
 import argparse;
 import os;
+import re;
 import sys;
+import json;
 import time;
+import threading;
+import queue;
 import shutil;
+import requests;
+from bs4 import BeautifulSoup;
 from itertools import chain;
 from ventoyl import ventoyl;
 
-def load():
+def load(msg):
     characters = "/-\|";
     for char in characters:
-        sys.stdout.write("\r"+"wait... "+char);
+        sys.stdout.write("\r"+msg+"... "+char);
         time.sleep(.1);
         sys.stdout.flush();
 def hr_filesize (size):
@@ -22,6 +28,29 @@ def hr_filesize (size):
             break;
         size /= 1024.0
     return f"{size:.0f} {unit}";
+
+def download_file (mount_dir, iso_name, url):
+
+    print("Downloading " + bchar.HEADER + str(iso_name) + bchar.ENDC + " from " + bchar.OKBLUE + str(url) + bchar.ENDC + " ...");
+    download_request = requests.get(url + str(iso_name), stream=True, allow_redirects=True);
+    start = time.process_time();
+    download_length = download_request.headers.get("content-length");
+    dl = 0;
+    final_location = str(mount_dir) + "/" + str(iso_name);
+    downloaded_file = open(final_location, "wb");
+
+    for chunk in download_request.iter_content(1024):
+        dl += len(chunk);
+        downloaded_file.write(chunk);
+        done = int(50 * dl / int(download_length));
+        progress = "=" * done;
+        half = " " * (50-done);
+        timep = dl//(time.process_time() - start);
+        timep = hr_filesize(timep/8);
+        sys.stdout.write("\r"+bchar.OKCYAN+"["+bchar.ENDC + bchar.OKBLUE + str(progress) + str(half) +bchar.OKCYAN+"]"+bchar.ENDC+" "+str(timep)+"/s");
+
+    print("\nTime Elapsed: " + str(time.process_time() - start) + "s\n");
+    downloaded_file.close();
 
 class bchar:
     HEADER = '\033[95m'
@@ -36,21 +65,45 @@ class bchar:
 
 def main ():
 
-    parser = argparse.ArgumentParser(description="Update ISO image found on a ventoy device");
-    parser.add_argument("-l", action="store_true", help="disable Ventoy ASCII logo");
-    parser.add_argument("-v", action="store_true", help="enable verbose mode");
+    global etcdir;
+    etcdir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "etc"));
+    parser = argparse.ArgumentParser(prog="Ventoy Updater", description="Update ISO image found on a ventoy device");
+    parser.add_argument("-V", "--version", action="version", version="%(prog)s 0.2");
+    parser.add_argument("-v", "--verbose", dest="v", action="store_true", help="enable verbose mode");
+    parser.add_argument("-l", "--no-logo", dest="l", action="store_true", help="disable Ventoy ASCII logo");
     parser.add_argument("--device", help="explicit specifiy a Ventoy device (e.g. sda1)");
 
     subparser = parser.add_subparsers(dest="command");
 
     sinstall = subparser.add_parser("install", help="install new ISO images");
-    sinstall.add_argument("--file");
+    sinstall.add_argument("-o", "--os", dest="os", help="short name of the OS you want to install (e.g. debian/manjaro)");
+    sinstall.add_argument("-f", "--file", dest="file", help="copy specified ISO file to your Ventoy device (just a cp)");
 
-    sadd = subparser.add_parser("add", help="add URL ISO sources to the JSON config file");
+    sremove = subparser.add_parser("remove", help="remove an installed ISO image from your Ventoy device");
+
+    scheckurl = subparser.add_parser("check-url", description="If you leave the options empty, you will be asked interactively.", help="check an URL and return found ISO images");
+    scheckurl.add_argument("--url", dest="url", help="the URL you want to check.", required=False);
+
+    saddurl = subparser.add_parser("add-url", description="If you leave the options empty, you will be asked interactively.", help="add URL OS ISO sources to the JSON config file ("+ str(etcdir) +"/url_config.json)");
+    saddurl.add_argument("--url", dest="addurl", help="the URL you want to add.", required=False);
+    saddurl.add_argument("--short-name", dest="sname", help="the short name of your new entry. Like 'debian' or 'ubuntu'", required=False);
+    saddurl.add_argument("--long-name", dest="lname", help="the long name of your added entry. Like 'Debian Buster' or 'Ubuntu Bionic Beaver'", required=False);
+
+    supdate = subparser.add_parser("check-update", help="Check for updates for your installed ISO images");
+
+    supdate = subparser.add_parser("update", help="update all or specific ISO images");
+    supdate.add_argument("--num", help="Update specific ISO image using the index number (from subcommand list)");
+    supdate.add_argument("--check", action="store_true", help="check for updates");
+    supdate.add_argument("--all", action="store_true", help="try to update all ISO images");
+
     slist = subparser.add_parser("list", help="list installed ISO images");
     sstats = subparser.add_parser("stats", help="print usage statistics");
 
     args = parser.parse_args();
+
+    url_file = open(etcdir + "/url_config.json", "r");
+    global json_data;
+    json_data = json.load(url_file);
 
     global verbose_mode;
     verbose_mode = False;
@@ -74,6 +127,31 @@ def main ():
         install();
     if args.command == "list":
         listfiles();
+    if args.command == "update":
+        updatef();
+    if args.command == "remove":
+        remove_iso();
+    if args.command == "check-url":
+        if args.url:
+            checkurl(True, args.url);
+        else:
+            checkurl(False);
+    if args.command == "add-url":
+        print(args);
+        if args.sname:
+            s_name = args.sname;
+        else:
+            s_name = None;
+        if args.lname:
+            l_name = args.lname;
+        else:
+            l_name = None;
+        if args.addurl:
+            newurl = args.addurl;
+        else:
+            newurl = None;
+
+        addurl(newurl, s_name, l_name);
     if not args.command:
         print_stats();
         listfiles();
@@ -94,13 +172,133 @@ def print_stats ():
             print(bchar.BOLD + bchar.HEADER + "Used: " + bchar.ENDC + str(hr_filesize(shutil.disk_usage(ventoy.temp_dir).used)));
             print(bchar.BOLD + bchar.HEADER + "Free: " + bchar.ENDC + str(hr_filesize(shutil.disk_usage(ventoy.temp_dir).free)));
 
+
+def grequest (url):
+    rval = requests.get(url).text;
+    rqueue.put(rval);
+
 def install():
-    pass;
+    
+    json_iterator = 0;
+    available_os = [];
+    for os in json_data:
+        print(bchar.BOLD + "[ID: "+ str(json_iterator) +"]"+bchar.ENDC+": " + bchar.OKGREEN + str(json_data[str(os)]["name"]) + bchar.ENDC)
+        available_os.append(os);
+        json_iterator += 1;
+    
+    select_install_os = input("Which OS do you want to install? [0-"+str(json_iterator-1)+"]: ");
+
+    try:
+        try:
+            url = json_data[available_os[int(select_install_os)]]["url"];
+
+            #request = requests.get(url).text;
+            global rqueue;
+            rqueue = queue.Queue()
+            request_process = threading.Thread(name="request_process", target=grequest, args=[str(url)]);
+            request_process.start();
+            while request_process.is_alive():
+                load("Searching for installable versions");
+
+            request_result = rqueue.get();
+
+            sos_html_soup = BeautifulSoup(request_result, "html.parser");
+            sos_iso_images = [ node.get("href") for node in sos_html_soup.find_all("a") if node.get("href").endswith(".iso")];
+            sos_iso_images = list(dict.fromkeys(sos_iso_images))
+            os_iterator = 0;
+            print("\n");
+            for image in sos_iso_images:
+                image = image.split("/")[-1];
+                print(bchar.BOLD + "[ID: "+ str(os_iterator) +"]"+bchar.ENDC+": " + bchar.OKGREEN + image + bchar.ENDC);
+                os_iterator += 1;
+
+            select_os_type = input("Which OS type do you want to install? [0-"+str(os_iterator-1)+"]: ");
+    
+            url_regex = r"^http[s]:\/\/.*\/";
+            download_match = re.search(url_regex, sos_iso_images[int(select_os_type)]);
+            if download_match:
+                url = re.findall(url_regex, sos_iso_images[int(select_os_type)]);
+                url = url[0];
+                sos_iso_images[int(select_os_type)] = str(sos_iso_images[int(select_os_type)]).split("/")[-1];
+
+            try:
+                #download_url = url + sos_iso_images[int(select_os_type)];
+                download_file(ventoy.temp_dir, sos_iso_images[int(select_os_type)], url);
+                print(bchar.OKGREEN + "Done. You can now use "+str(sos_iso_images[int(select_os_type)])+"..." + bchar.ENDC);
+                umount_process = threading.Thread(name="umount_process", target=ventoy.umount_ventoy_device);
+                umount_process.start();
+                while umount_process.is_alive():
+                    load("Unmounting " + str(ventoy.ventoy_device) + "... I may still have to sync.");
+                print("\n" + bchar.WARNING + "Ventoy device "+str(ventoy.ventoy_device)+ " umounted!" + bchar.ENDC);
+            except IndexError or ValueError:
+                sys.exit(bchar.FAIL + "Error: Select a valid operating system!" + bchar.ENDC);
+        except KeyError or ValueError:
+            sys.exit(bchar.FAIL + "Error: Interesting... Your JSON file looks broken. Cannot find parameter 'url' for os " + str(available_os[int(select_install_os)]) + bchar.ENDC);
+    except IndexError or ValueError:
+        sys.exit(bchar.FAIL + "Error: Select a valid operating system!" + bchar.ENDC);
 
 def add():
     pass;
 
-def listfiles():
+def updatef():
+    pass;
+
+def remove_iso ():
+    verbose_mode = True;
+    listfiles();
+    print("\nType 'ALL' to delete all ISO images.");
+    which_iso = input("\nWhich ISO file do you want to remove? ");
+    ventoy_files = ventoy.get_iso_files();
+    print(ventoy_files);
+    if which_iso == "ALL":
+        for iso in ventoy_files:
+            ventoy.delete_iso(str(iso));
+            print("Deleted ISO file "+ str(iso) +"!");
+
+        return;
+
+    try:
+        returnval = ventoy.delete_iso(str(ventoy_files[int(which_iso)]));
+
+    except ValueError:
+        returnval = ventoy.delete_iso(str(which_iso));
+
+    if returnval:
+        print("Deleted ISO image.");
+    else:
+        print("Could not delete ISO image.");
+
+def checkurl (explurl=False, url=None):
+
+    checkurl = url;
+    if not explurl:
+        print("\nPlease type in the URL you want to check.");
+        checkurl = input("URL: ");
+    global rqueue;
+    rqueue = queue.Queue()
+    request_process = threading.Thread(name="request_process", target=grequest, args=[str(checkurl)]);
+    request_process.start();
+    while request_process.is_alive():
+        load("Searching for installable versions");
+
+    request_result = rqueue.get();
+
+    sos_html_soup = BeautifulSoup(request_result, "html.parser");
+    sos_iso_images = [ node.get("href") for node in sos_html_soup.find_all("a") if node.get("href").endswith(".iso")];
+    os_iterator = 0;
+    print("\n");
+    for image in sos_iso_images:
+        image = image.split("/")[-1];
+        print(bchar.BOLD + "[ID: "+ str(os_iterator) +"]"+bchar.ENDC+": " + bchar.OKGREEN + image + bchar.ENDC);
+        os_iterator += 1;
+
+    if len(sos_iso_images) >= 1:
+        print("\nI found "+ str(len(sos_iso_images)) +" files. You can add the URL by using following command:");
+        print(bchar.HEADER + sys.argv[0] + " add-url --url " + checkurl + bchar.ENDC);
+    else:
+        print( bchar.WARNING + "Warning: I did not found any ISO images on " + bchar.HEADER + checkurl + bchar.ENDC + bchar.WARNING + ". Please try again with another URL." + bchar.ENDC);
+
+def listfiles ():
     
     files_found = ventoy.get_iso_files();
     
@@ -115,9 +313,40 @@ def listfiles():
             print(bchar.OKGREEN + u"\u2192 " + iso + bchar.ENDC + ""+sizel+" "+bchar.UNDERLINE+"["+str(files_found.index(iso))+"]" + bchar.ENDC);
 
         if verbose_mode:
-            print("\nYou can use the index numbers to run an action (e.g. update)");
+            print("\nYou can use the index numbers to run an action (e.g. update or remove)");
     else:
         sys.exit(bchar.WARNING + "Warning:\nNo ISO images on your Ventoy device ("+ventoy.ventoy_device+") found.\nMaybe its not a valid Ventoy device?");
+
+def addurl (url, sname, lname):
+
+    if isinstance(url, str):
+        addurl = url;
+    else:
+        print("Please type in the URL you want to add to the JSON config file. You may want to check your URL with option check-url.");
+        addurl = input("URL: ");
+    
+    if isinstance(sname, str):
+        short_name = sname;
+    else:
+        print("Give your entry a short name like 'debian' or 'ubuntu'");
+        short_name = input("Short name: ");
+
+    if isinstance(lname, str):
+        long_name = lname;
+    else:
+        print("Give your entry a long name like 'Debian Buster' or 'Manjaro KDE'");
+        long_name = input("Long name: ");
+
+    new_url_config = {
+        str(short_name): {
+            "name": str(long_name),
+            "url": str(addurl)
+        }
+    };
+
+    json_data.update(new_url_config);
+    with open(etcdir + "/url_config.json", "w") as jsonconfig:
+        json.dump(json_data, jsonconfig, indent=4);
 
 ventoyu_ascii = bchar.OKBLUE + """
  _    __           __              __  __
@@ -126,7 +355,7 @@ ventoyu_ascii = bchar.OKBLUE + """
 | |/ /  __/ / / / /_/ /_/ / /_/ / /_/ /  
 |___/\___/_/ /_/\__/\____/\__, /\____/   
                          /____/          
-"""
+""" + bchar.ENDC;
 
 if __name__ == "__main__":
     main();

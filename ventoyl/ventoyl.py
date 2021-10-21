@@ -42,10 +42,11 @@ class ventoyl:
             search_pattern = "[V,v]entoy";
             if isinstance(json_parse, dict):
                 for key in json_parse["blockdevices"]:
-                    for child in key["children"]:
-                        if re.search(search_pattern, str(child["label"])):
-                            fdevice = child;
-                            logging.debug("Found Ventoy device: " + str(child));
+                    if key["children"]:
+                        for child in key["children"]:
+                            if re.search(search_pattern, str(child["label"])):
+                                fdevice = child;
+                                logging.debug("Found Ventoy device: " + str(child));
             else:
                 return False;
 
@@ -90,6 +91,17 @@ class ventoyl:
             except sh.ErrorReturnCode_32:
                 sys.exit("You must be root to mount a device");
 
+    def umount_ventoy_device (self):
+        if not self.is_ventoy_mounted():
+            return False;
+
+        try:
+            mrc = sh.umount(str(self.ventoy_device));
+            self.device_mounted = False;
+            return True;
+        except:
+            return False;
+
     def is_ventoy_mounted (self):
         if self.device_mounted:
             return True;
@@ -117,8 +129,15 @@ class ventoyl:
         else:
                 return False;
 
-    def downloadIso (self, url):
-        pass;
+    def delete_iso (self,iso_filename:str):
+        if not self.ventoy_device:
+            return False;
+        if not self.device_mounted:
+            return False;
 
-    def deleteIso (self):
-        pass;
+        try:
+            remove_iso = os.remove(iso_filename);
+            return True;
+        except FileNotFoundError:
+            return False;
+

@@ -1,4 +1,38 @@
-URLS={
-
-
+{
+    "debianarm": {
+        "name": "Debian (arm64)",
+        "url": "https://cdimage.debian.org/debian-cd/current/arm64/iso-cd/"
+    },
+    "debianamd": {
+        "name": "Debian (amd64)",
+        "url": "https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/"
+    },
+    "grml": {
+        "name": "Grml",
+        "url": "https://download.grml.org/"
+    },
+    "ubuntu1804": {
+        "name": "Ubuntu (18.04)",
+        "url": "https://ftp.halifax.rwth-aachen.de/ubuntu-releases/18.04/"
+    },
+    "ubuntu2004": {
+        "name": "Ubuntu (20.04)",
+        "url": "https://ftp.halifax.rwth-aachen.de/ubuntu-releases/20.04/"
+    },
+    "ubuntu2104": {
+        "name": "Ubuntu (21.04)",
+        "url": "https://ftp.halifax.rwth-aachen.de/ubuntu-releases/21.04/"
+    },
+    "manjaroxfce": {
+        "name": "Manjaro (XFCE)",
+        "url": "https://manjaro.org/downloads/official/xfce/"
+    },
+    "manjarokde": {
+        "name": "Manjaro (KDE)",
+        "url": "https://manjaro.org/downloads/official/kde/"
+    },
+    "finnix123": {
+        "name": "Finnix 123",
+        "url": "https://www.finnix.org/releases/123/"
+    }
 }
