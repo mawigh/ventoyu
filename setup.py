@@ -24,4 +24,5 @@ setup(
         "Operating System :: Linux",
     ],
     scripts=["bin/ventoyu"],
+    install_requires=["bs4", "requests", "sh"],
 )

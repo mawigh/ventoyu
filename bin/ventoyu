@@ -249,7 +249,6 @@ def remove_iso ():
     print("\nType 'ALL' to delete all ISO images.");
     which_iso = input("\nWhich ISO file do you want to remove? ");
     ventoy_files = ventoy.get_iso_files();
-    print(ventoy_files);
     if which_iso == "ALL":
         for iso in ventoy_files:
             ventoy.delete_iso(str(iso));
