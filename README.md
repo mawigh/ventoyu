@@ -1,5 +1,14 @@
 # Ventoy Updater
 
+<pre>
+  _    __           __              __  __
+ | |  / /__  ____  / /_____  __  __/ / / /
+ | | / / _ \/ __ \/ __/ __ \/ / / / / / / 
+ | |/ /  __/ / / / /_/ /_/ / /_/ / /_/ /  
+ |___/\___/_/ /_/\__/\____/\__, /\____/   
+                          /____/          
+</pre>
+
 Official Ventoy Website:
 https://www.ventoy.net/en/index.html
 
@@ -22,6 +31,10 @@ https://github.com/ventoy/Ventoy
 ## Description
 
 The Ventoy Updater can be used to install new, update or remove ISO files on the Ventoy device.
+
+<p align="center">
+  <img src="ventoyu_install.png">
+</p>
 
 ## OS Support
 
