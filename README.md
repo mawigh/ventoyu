@@ -41,7 +41,7 @@ With the option `add-url` you have the possibility to add new ISO sources.
 ## Install Ventoy Updater
 
 ```bash
-$ pip3 install ventoy_updater
+$ pip3 install ventoyu
 ```
 
 **Note:** You may want to install with option `--user`.

@@ -6,9 +6,10 @@ import shutil;
 import re;
 import sys;
 import tempfile;
-import sh;
 import os;
 import logging;
+import ctypes;
+import ctypes.util;
 
 class ventoyl:
 
@@ -25,19 +26,12 @@ class ventoyl:
                 ttr = self.check_ventoy_mount();
                 self.mount_ventoy_device();
 
-        if debug:
-            logging.basicConfig(filename='example.log', encoding='utf-8', level=logging.DEBUG)
-        else:
-            logging.basicConfig(filename='example.log', encoding='utf-8', level=logging.INFO)
-
-        # check url json file
-
     def find_ventoy_device (self):
 
         ls_blkd = shutil.which("lsblk");
         fdevice = "";
         if ls_blkd:
-            lsblk_out = subprocess.check_output([ls_blkd, "-Jnpo", "label,name"]);
+            lsblk_out = subprocess.check_output([ls_blkd, "-Jnpo", "label,name,fstype"]);
             json_parse = json.loads(lsblk_out);
             search_pattern = "[V,v]entoy";
             if isinstance(json_parse, dict):
@@ -52,6 +46,7 @@ class ventoyl:
 
             if isinstance(fdevice, dict):
                 self.ventoy_device = fdevice["name"];
+                self.ventoy_devicefs = fdevice["fstype"];
                 return fdevice;
             else:
                 return False;
@@ -85,11 +80,15 @@ class ventoyl:
         
         if not self.is_ventoy_mounted():
             self.temp_dir = tempfile.mkdtemp();
-            try: 
-                mrc = sh.mount(str(self.ventoy_device),str(self.temp_dir));
+            libc = ctypes.CDLL(ctypes.util.find_library("c"), use_errno=True);
+            libc.mount.argtypes = (ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_ulong, ctypes.c_char_p);
+
+            return_val = libc.mount(str(self.ventoy_device).encode(), str(self.temp_dir).encode(), str(self.ventoy_devicefs).encode(), 0, "rw".encode());
+            if return_val < 0:
+                error = ctypes.get_errno();
+                raise OSError(error, "Error mounting Ventoy device "+ str(self.ventoy_device) +" on "+ str(self.temp_dir) +": " + os.strerror(error));
+            else:
                 self.device_mounted = True;
-            except sh.ErrorReturnCode_32:
-                sys.exit("You must be root to mount a device");
 
     def umount_ventoy_device (self):
         if not self.is_ventoy_mounted():

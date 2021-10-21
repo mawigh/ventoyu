@@ -7,7 +7,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read();
 
 setup(
-    name="ventoy_updater",
+    name="ventoyu",
     version="0.2",
     author="Marcel-Brian Wilkowsky",
     author_email="marcel.wilkowsky@hotmail.de",
@@ -20,9 +20,10 @@ setup(
     },
     classifiers=[
         "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: GPL-3.0",
-        "Operating System :: Linux",
+        "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+        "Operating System :: Unix",
     ],
+    include_package_data=True,
     scripts=["bin/ventoyu"],
-    install_requires=["bs4", "requests", "sh"],
+    install_requires=["beautifulsoup4", "requests"],
 )
