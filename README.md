@@ -75,6 +75,16 @@ $ sudo ventoyu install
 $ sudo ventoyu add-url --url <URL>
 ```
 
+## Install or update Ventoy
+
+```bash
+$ sudo ventoyu --device /dev/sdX config --install
+```
+
+This function downloads the latest Ventoy release.
+
+**Tip:** If have the possibility to open the Ventoy GUI installer with `--gui`.
+
 ### Get help
 
 For more information type `ventoyu --help`.

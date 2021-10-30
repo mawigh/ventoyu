@@ -1,1 +1,1 @@
-include ventoyl/etc/url_config.json
+include src/ventoyl/etc/url_config.json

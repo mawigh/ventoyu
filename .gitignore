@@ -1,2 +1,5 @@
-ventoy_updater.egg-info/**
-ventoyl/__pycache__/**
+src/ventoyl.egg-info/**
+src/ventoyu.egg-info/**
+src/ventoyl/__pycache__/**
+dist/**
+build/**

@@ -10,8 +10,16 @@ import os;
 import logging;
 import ctypes;
 import ctypes.util;
+import requests;
+import tarfile;
+
+class debug:
+    COLOR = '\033[93m';
 
 class ventoyl:
+
+    _Ventoy_git_releases = "https://api.github.com/repos/ventoy/Ventoy/releases/latest";
+    _Ventoy_download_URL = "https://github.com/ventoy/Ventoy/releases/download/vRELEASE/ventoy-RELEASE-linux.tar.gz";
 
     def __init__ (self, ventoy_device=None, debug=False):
         self.device_mounted = False;
@@ -19,6 +27,7 @@ class ventoyl:
         self.ventoy_device = ventoy_device;
         self.__easysearch = True;
         self.device_mounted = False;
+        self.debug = debug;
 
         if not self.ventoy_device:
             self.find_ventoy_device();
@@ -36,11 +45,15 @@ class ventoyl:
             search_pattern = "[V,v]entoy";
             if isinstance(json_parse, dict):
                 for key in json_parse["blockdevices"]:
-                    if key["children"]:
-                        for child in key["children"]:
-                            if re.search(search_pattern, str(child["label"])):
-                                fdevice = child;
-                                logging.debug("Found Ventoy device: " + str(child));
+                    try:
+
+                        if key["children"]:
+                            for child in key["children"]:
+                                if re.search(search_pattern, str(child["label"])):
+                                    fdevice = child;
+                                    logging.debug("Found Ventoy device: " + str(child));
+                    except KeyError:
+                        pass;
             else:
                 return False;
 
@@ -94,11 +107,11 @@ class ventoyl:
         if not self.is_ventoy_mounted():
             return False;
 
-        try:
-            mrc = sh.umount(str(self.ventoy_device));
-            self.device_mounted = False;
+        umount_cmd = shutil.which("umount");
+        rc = os.system(umount_cmd + " " + self.ventoy_device);
+        if rc == 0:
             return True;
-        except:
+        else:
             return False;
 
     def is_ventoy_mounted (self):
@@ -139,4 +152,63 @@ class ventoyl:
             return True;
         except FileNotFoundError:
             return False;
+
+    def install_latest_Ventoy (self, gui=False):
+
+        import platform;
+
+        if not self.ventoy_device:
+            return False;
+
+        latest_release = requests.get(self._Ventoy_git_releases);
+        latest_release = latest_release.json();
+        latest_release = latest_release["tag_name"];
+        latest_release = latest_release.replace("v", "");
+        download_url = self._Ventoy_download_URL.replace("RELEASE", latest_release);
+        file_name = download_url.split("/")[-1];
+
+        download_dir = tempfile.mkdtemp();
+        if self.debug:
+            print(debug.COLOR + "Debug: Download URL: " + download_url);
+            print(debug.COLOR + "Debug: Using download directory " + download_dir);
+
+        download_file = requests.get(download_url);
+        file_path = download_dir + "/" + file_name;
+        if self.debug:
+            print(debug.COLOR + "Debug: Trying to download file: " + file_path);
+        with open(file_path, "wb") as tar_file:
+            tar_file.write(download_file.content);
+
+        if not os.path.isfile(file_path):
+            sys.exit("Error: Cannot find "+ file_path +"!");
+        else:
+            if self.debug:
+                print(debug.COLOR + "Latest Ventoy release v"+ latest_release +" successfully downloaded");
+
+        if file_name.endswith(".tar.gz"):
+            etar = tarfile.open(file_path, "r:gz");
+            etar.extractall(download_dir);
+            etar.close();
+        elif file_name.endswiith(".tar"):
+            etar = tarfile.open(file_path, "r:");
+            etar.extractall(download_dir);
+            etar.close();
+
+        if gui == True:
+            gui_installer_path = download_dir + "/ventoy-" + latest_release + "/VentoyGUI." + platform.uname().machine;
+            if os.path.isfile(gui_installer_path):
+                os.system(gui_installer_path);
+            else:
+                sys.exit("Error: Cannot find GUI installer " + gui_installer_path);
+        else:
+            shell_installer = download_dir + "/ventoy-" + latest_release + "/Ventoy2Disk.sh";
+            if os.path.isfile(shell_installer):
+                if self.debug:
+                    print( debug.COLOR + "Debug: Launch Ventoy Installer...");
+                os.system(shell_installer + " -i " + self.ventoy_device);
+            else:
+                sys.exit("Error: Cannot find Ventoy shell installer " + shell_installer);
+
+
+
 

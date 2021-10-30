@@ -1,5 +1,5 @@
 try:
-    from setuptools import setup;
+    from setuptools import setup, find_packages;
 except ImportError:
     from distutils.core import setup;
 
@@ -26,4 +26,6 @@ setup(
     include_package_data=True,
     scripts=["bin/ventoyu"],
     install_requires=["beautifulsoup4", "requests"],
+    package_dir={"": "src"},
+    packages=find_packages(where="src"),
 )

@@ -11,9 +11,9 @@ import threading;
 import queue;
 import shutil;
 import requests;
+import ventoyl;
 from bs4 import BeautifulSoup;
 from itertools import chain;
-from ventoyl import ventoyl;
 
 def load(msg):
     characters = "/-\|";
@@ -47,7 +47,7 @@ def download_file (mount_dir, iso_name, url):
         half = " " * (50-done);
         timep = dl//(time.process_time() - start);
         timep = hr_filesize(timep/8);
-        sys.stdout.write("\r"+bchar.OKCYAN+"["+bchar.ENDC + bchar.OKBLUE + str(progress) + str(half) +bchar.OKCYAN+"]"+bchar.ENDC+" "+str(timep)+"/s");
+        sys.stdout.write("\r"+bchar.OKCYAN+"["+bchar.ENDC + bchar.OKBLUE + str(progress) + str(half) +bchar.OKCYAN+"]"+bchar.ENDC+" "+str(timep));
 
     print("\nTime Elapsed: " + str(time.process_time() - start) + "s\n");
     downloaded_file.close();
@@ -98,6 +98,9 @@ def main ():
 
     slist = subparser.add_parser("list", help="list installed ISO images");
     sstats = subparser.add_parser("stats", help="print usage statistics");
+    sconfig = subparser.add_parser("config", help="modify your Ventoy device");
+    sconfig.add_argument("--install", action="store_true", help="Install latest Ventoy software on your device");
+    sconfig.add_argument("--gui", action="store_true", help="Open the Ventoy GUI installer. Only works with --install");
 
     args = parser.parse_args();
 
@@ -152,6 +155,14 @@ def main ():
             newurl = None;
 
         addurl(newurl, s_name, l_name);
+    if args.command == "config":
+        if args.install:
+            if not args.device and not args.gui:
+                sys.exit(bchar.FAIL + "Error: You have to explicity set your device with --device or start the GUI installer with --gui" + bchar.ENDC);
+            action = "install";
+            if args.gui:
+                action = "opengui";
+        config(action);
     if not args.command:
         print_stats();
         listfiles();
@@ -346,6 +357,14 @@ def addurl (url, sname, lname):
     json_data.update(new_url_config);
     with open(etcdir + "/url_config.json", "w") as jsonconfig:
         json.dump(json_data, jsonconfig, indent=4);
+
+def config (action):
+
+    if action == "install":
+        ventoy.install_latest_Ventoy();
+    if action == "opengui":
+        print(bchar.HEADER + "Download latest Ventoy tarball to temp directory.. Trying to open the GUI installer..." + bchar.ENDC);
+        ventoy.install_latest_Ventoy(True);
 
 ventoyu_ascii = bchar.OKBLUE + """
  _    __           __              __  __
