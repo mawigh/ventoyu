@@ -76,6 +76,7 @@ def main ():
     subparser = parser.add_subparsers(dest="command");
 
     sinstall = subparser.add_parser("install", help="install new ISO images");
+    sinstall.add_argument("-m", "--no-umount", dest="m", action="store_true", help="DO NOT umount Ventoy device after install");
     sinstall.add_argument("-o", "--os", dest="os", help="short name of the OS you want to install (e.g. debian/manjaro)");
     sinstall.add_argument("-f", "--file", dest="file", help="copy specified ISO file to your Ventoy device (just a cp)");
 
@@ -127,7 +128,10 @@ def main ():
     if args.command == "stats":
         print_stats();
     if args.command == "install":
-        install();
+        umount = True;
+        if args.m:
+            umount = False;
+        install(umount);
     if args.command == "list":
         listfiles();
     if args.command == "update":
@@ -188,7 +192,7 @@ def grequest (url):
     rval = requests.get(url).text;
     rqueue.put(rval);
 
-def install():
+def install(umount=True):
     
     json_iterator = 0;
     available_os = [];
@@ -236,11 +240,12 @@ def install():
                 #download_url = url + sos_iso_images[int(select_os_type)];
                 download_file(ventoy.temp_dir, sos_iso_images[int(select_os_type)], url);
                 print(bchar.OKGREEN + "Done. You can now use "+str(sos_iso_images[int(select_os_type)])+"..." + bchar.ENDC);
-                umount_process = threading.Thread(name="umount_process", target=ventoy.umount_ventoy_device);
-                umount_process.start();
-                while umount_process.is_alive():
-                    load("Unmounting " + str(ventoy.ventoy_device) + "... I may still have to sync.");
-                print("\n" + bchar.WARNING + "Ventoy device "+str(ventoy.ventoy_device)+ " umounted!" + bchar.ENDC);
+                if umount:
+                    umount_process = threading.Thread(name="umount_process", target=ventoy.umount_ventoy_device);
+                    umount_process.start();
+                    while umount_process.is_alive():
+                        load("Unmounting " + str(ventoy.ventoy_device) + "... I may still have to sync.");
+                    print("\n" + bchar.WARNING + "Ventoy device "+str(ventoy.ventoy_device)+ " umounted!" + bchar.ENDC);
             except IndexError or ValueError:
                 sys.exit(bchar.FAIL + "Error: Select a valid operating system!" + bchar.ENDC);
         except KeyError or ValueError:
