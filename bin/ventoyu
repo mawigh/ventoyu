@@ -228,6 +228,9 @@ def install(umount=True):
                 os_iterator += 1;
 
             select_os_type = input("Which OS type do you want to install? [0-"+str(os_iterator-1)+"]: ");
+            if select_os_type == "":
+                if len(sos_iso_images) == 1:
+                    select_os_type = "0";
     
             url_regex = r"^http[s]:\/\/.*\/";
             download_match = re.search(url_regex, sos_iso_images[int(select_os_type)]);
