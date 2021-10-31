@@ -153,7 +153,7 @@ class ventoyl:
         except FileNotFoundError:
             return False;
 
-    def install_latest_Ventoy (self, gui=False):
+    def install_latest_Ventoy (self, gui=False, force=False):
 
         import platform;
 
@@ -205,7 +205,11 @@ class ventoyl:
             if os.path.isfile(shell_installer):
                 if self.debug:
                     print( debug.COLOR + "Debug: Launch Ventoy Installer...");
-                os.system(shell_installer + " -i " + self.ventoy_device);
+                    
+                cmd = shell_installer + " -i " + self.ventoy_device;
+                if force == True:
+                    cmd = shell_installer + " -I " + self.ventoy_device;
+                os.system(cmd);
             else:
                 sys.exit("Error: Cannot find Ventoy shell installer " + shell_installer);
 

@@ -68,10 +68,10 @@ def main ():
     global etcdir;
     etcdir = os.path.abspath(os.path.join(os.path.dirname(ventoyl.__file__), "etc"));
     parser = argparse.ArgumentParser(prog="Ventoy Updater", description="Update ISO image found on a ventoy device");
-    parser.add_argument("-V", "--version", action="version", version="%(prog)s 0.2");
+    parser.add_argument("--device", help="explicit specifiy a Ventoy device (e.g. sda1)");
     parser.add_argument("-v", "--verbose", dest="v", action="store_true", help="enable verbose mode");
     parser.add_argument("-l", "--no-logo", dest="l", action="store_true", help="disable Ventoy ASCII logo");
-    parser.add_argument("--device", help="explicit specifiy a Ventoy device (e.g. sda1)");
+    parser.add_argument("-V", "--version", action="version", version="%(prog)s 0.2");
 
     subparser = parser.add_subparsers(dest="command");
 
@@ -99,9 +99,15 @@ def main ():
 
     slist = subparser.add_parser("list", help="list installed ISO images");
     sstats = subparser.add_parser("stats", help="print usage statistics");
-    sconfig = subparser.add_parser("config", help="modify your Ventoy device");
-    sconfig.add_argument("--install", action="store_true", help="Install latest Ventoy software on your device");
-    sconfig.add_argument("--gui", action="store_true", help="Open the Ventoy GUI installer. Only works with --install");
+
+    sconfig = subparser.add_parser("config", help="Modify your Ventoy device. Type config --help for more information");
+    sconfigsubparser = sconfig.add_subparsers(dest="configcommand");
+
+    sconfiginstall = sconfigsubparser.add_parser("install",  help="Install/Update latest Ventoy software on your device");
+    sconfiginstall.add_argument("--gui", action="store_true", help="Opens the Ventoy GUI installer");
+    sconfiginstall.add_argument("-f", "--force", action="store_true", help="Force the installation with the shell installer");
+
+    sconfigmodify = sconfigsubparser.add_parser("modify",  help="Modify Ventoy attributes on your device");
 
     args = parser.parse_args();
 
@@ -160,13 +166,13 @@ def main ():
 
         addurl(newurl, s_name, l_name);
     if args.command == "config":
-        if args.install:
+        if args.configcommand == "install":
             if not args.device and not args.gui:
                 sys.exit(bchar.FAIL + "Error: You have to explicity set your device with --device or start the GUI installer with --gui" + bchar.ENDC);
             action = "install";
             if args.gui:
                 action = "opengui";
-        config(action);
+        config(action, args.force);
     if not args.command:
         print_stats();
         listfiles();
@@ -366,10 +372,11 @@ def addurl (url, sname, lname):
     with open(etcdir + "/url_config.json", "w") as jsonconfig:
         json.dump(json_data, jsonconfig, indent=4);
 
-def config (action):
+def config (action, force=False):
 
     if action == "install":
-        ventoy.install_latest_Ventoy();
+        print(bchar.HEADER + "Download latest Ventoy tarball to temp directory.. Trying to open the installer..." + bchar.ENDC);
+        ventoy.install_latest_Ventoy(False, force);
     if action == "opengui":
         print(bchar.HEADER + "Download latest Ventoy tarball to temp directory.. Trying to open the GUI installer..." + bchar.ENDC);
         ventoy.install_latest_Ventoy(True);
