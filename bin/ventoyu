@@ -14,6 +14,7 @@ import requests;
 import ventoyl;
 from bs4 import BeautifulSoup;
 from itertools import chain;
+from difflib import SequenceMatcher;
 
 def load(msg):
     characters = "/-\|";
@@ -142,6 +143,8 @@ def main ():
         listfiles();
     if args.command == "update":
         updatef();
+    if args.command == "check-update":
+        load_wrapper("Checking for updates", check_update);
     if args.command == "remove":
         remove_iso();
     if args.command == "check-url":
@@ -193,6 +196,11 @@ def print_stats ():
             print(bchar.BOLD + bchar.HEADER + "Used: " + bchar.ENDC + str(hr_filesize(shutil.disk_usage(ventoy.temp_dir).used)));
             print(bchar.BOLD + bchar.HEADER + "Free: " + bchar.ENDC + str(hr_filesize(shutil.disk_usage(ventoy.temp_dir).free)));
 
+def load_wrapper (msg, func):
+    process = threading.Thread(name="load_wrapper_process", target=func);
+    process.start();
+    while process.is_alive():
+        load(msg);
 
 def grequest (url):
     rval = requests.get(url).text;
@@ -262,11 +270,48 @@ def install(umount=True):
     except IndexError or ValueError:
         sys.exit(bchar.FAIL + "Error: Select a valid operating system!" + bchar.ENDC);
 
-def add():
-    pass;
+def check_update ():
 
-def updatef():
-    pass;
+    _version_search_regex = r"(([0-9]{1,3}\.[0-9]{1,3})\.[0-9]{1,3})|([0-9]{1,4}\.)";
+
+    iso_files = ventoy.get_iso_files();
+
+    if not len(iso_files) > 0:
+        sys.exit(bchar.FAIL + "Error: Could not find any ISO images on your Ventoy device!" + bchar.ENDC);
+
+    check_for_updates = {};
+    sum_iso_images = [];
+
+    for os in json_data:
+        url = json_data[str(os)]["url"];
+        request_result = requests.get(url).text;
+    
+        html_soup = BeautifulSoup(request_result, "html.parser");
+        fiso_files = [ node.get("href") for node in html_soup.find_all("a") if node.get("href").endswith(".iso")];
+        sum_iso_images += fiso_files;
+
+    sum_iso_images = set(sum_iso_images);
+
+    if not len(sum_iso_images) > 1:
+        sys.exit(bchar.FAIL + "Error: Could not retrieve any iso file from your config file!" + bchar.ENDC);
+
+    for iso in iso_files:
+        iso = iso.split("/")[-1];
+        for siso in sum_iso_images:
+            similarity = SequenceMatcher(None, siso, iso).ratio();
+            if similarity == 1.0:
+                if verbose_mode:
+                    print( bchar.OKGREEN + "Verbose: " + str(iso) + " is already the newest version!");
+                break;
+            if similarity > 0.935:
+                check_for_updates.update({str(iso): "needstobeupdated"});
+                if verbose_mode:
+                    similarity = round(similarity*100, 1);
+                    print(bchar.WARNING + "Verbose: Matching "+ iso +" and " + siso + " with "+bchar.BOLD+ str(similarity)+"%"+bchar.ENDC+bchar.WARNING+" similarity." + bchar.ENDC);
+
+    if not len(check_for_updates.keys()) > 1:
+        sys.exit(bchar.OKGREEN + "It seems that no ISO file on your Ventoy device is upgradable. You will get more information with the option --verbose" + bchar.ENDC);
+
 
 def remove_iso ():
     verbose_mode = True;
