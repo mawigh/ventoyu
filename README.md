@@ -44,6 +44,8 @@ Currently supported images:
 | ---------------- | --- |
 | Debian (arm64) | https://cdimage.debian.org/debian-cd/current/arm64/iso-cd/ |
 | Debian (amd64) | https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/ |
+| CentOS 8 | http://ftp.halifax.rwth-aachen.de/centos/8/isos/ |
+| Rocky Linux 8 | https://download.rockylinux.org/pub/rocky/8/isos/ |
 | Grml | https://download.grml.org/ |
 | Ubuntu (18.04, 20.04, 21.04) | https://ftp.halifax.rwth-aachen.de/ubuntu-releases/ |
 | Manjaro (XFCE, KDE) | https://manjaro.org/downloads/official/ |
