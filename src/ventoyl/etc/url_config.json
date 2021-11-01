@@ -35,6 +35,14 @@
         "name": "Finnix 123",
         "url": "https://www.finnix.org/releases/123/"
     },
+    "rockylinux8x64": {
+        "name": "Rocky Linux 8 (x86_x64)",
+        "url": "https://download.rockylinux.org/pub/rocky/8/isos/x86_64/"
+    },
+    "rockylinux8aarch": {
+        "name": "Rocky Linux 8 (aarch64)",
+        "url": "https://download.rockylinux.org/pub/rocky/8/isos/aarch64/"
+    },
     "centos8": {
         "name": "CentOS 8",
         "url": "http://ftp.halifax.rwth-aachen.de/centos/8/isos/x86_64/"
