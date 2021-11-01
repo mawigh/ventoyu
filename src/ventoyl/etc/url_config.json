@@ -34,5 +34,9 @@
     "finnix123": {
         "name": "Finnix 123",
         "url": "https://www.finnix.org/releases/123/"
+    },
+    "centos8": {
+        "name": "CentOS 8",
+        "url": "http://ftp.halifax.rwth-aachen.de/centos/8/isos/x86_64/"
     }
 }
