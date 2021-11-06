@@ -175,6 +175,9 @@ def main ():
             action = "install";
             if args.gui:
                 action = "opengui";
+        if not args.configcommand:
+            sconfig.print_help();
+            sys.exit();
         config(action, args.force);
     if not args.command:
         print_stats();
