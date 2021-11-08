@@ -32,8 +32,12 @@ class ventoyl:
 
         if not isinstance(ventoy_device, str):
             if self.debug:
-                 print(debugp.COLOR + __name__ + ": Trying to find the Ventoy device.." + debugp.ENDC);
-            self.find_ventoy_device();
+                 sys.stdout.write(debugp.COLOR + __name__ + ": Trying to find the Ventoy device.." + debugp.ENDC);
+            rc = self.find_ventoy_device();
+            if not rc == False:
+                if self.debug:
+                    sys.stdout.write(debugp.COLOR + " Device found => " + str(rc["name"]) + debugp.ENDC);
+                    print("");
             
         rc = self.check_ventoy_mount();
         if rc == -1:
