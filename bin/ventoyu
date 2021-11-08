@@ -122,16 +122,23 @@ def main ():
         verbose_mode = True;
 
     global ventoy;
-    ventoy = ventoyl.ventoyl(None, verbose_mode);
 
     if not args.l:
         print(ventoyu_ascii);
     check_root();
     if args.device:
-        ventoy.ventoy_device = str(args.device);
+        try:
+            ventoy = ventoyl.ventoyl(str(args.device), verbose_mode);
+        except OSError:
+            ventoy = None;
+    else:
+        ventoy = ventoyl.ventoyl(None, verbose_mode);
+
     if ventoy:
         if not ventoy.ventoy_device:
             sys.exit( bchar.FAIL + "Error: No Ventoy device found. Plug in your Ventoy device or specify it explicity with --device");
+    else:
+        sys.exit( bchar.FAIL + "Error: Are you sure your specified Ventoy device ("+str(args.device)+") exists? Please have a look.");
     if args.command == "stats":
         print_stats();
     if args.command == "install":

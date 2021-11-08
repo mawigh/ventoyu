@@ -13,8 +13,9 @@ import ctypes.util;
 import requests;
 import tarfile;
 
-class debug:
+class debugp:
     COLOR = '\033[93m';
+    ENDC = '\033[0m';
 
 class ventoyl:
 
@@ -29,12 +30,18 @@ class ventoyl:
         self.device_mounted = False;
         self.debug = debug;
 
-        if not self.ventoy_device:
+        if not isinstance(ventoy_device, str):
+            if self.debug:
+                 print(debugp.COLOR + __name__ + ": Trying to find the Ventoy device.." + debugp.ENDC);
             self.find_ventoy_device();
-            if self.ventoy_device:
-                ttr = self.check_ventoy_mount();
-                self.mount_ventoy_device();
+            
+        rc = self.check_ventoy_mount();
+        if rc == -1:
+            if isinstance(ventoy_device, str):
+                raise OSError("The specified Ventoy device could not be found on your system.");
 
+        self.mount_ventoy_device();
+            
     def find_ventoy_device (self):
 
         ls_blkd = shutil.which("lsblk");
@@ -83,7 +90,7 @@ class ventoyl:
                         else:
                             return False;
                     else:
-                        return False;
+                        return -1;
         else:
             return False;
 
@@ -169,13 +176,13 @@ class ventoyl:
 
         download_dir = tempfile.mkdtemp();
         if self.debug:
-            print(debug.COLOR + "Debug: Download URL: " + download_url);
-            print(debug.COLOR + "Debug: Using download directory " + download_dir);
+            print(debugp.COLOR + "Debug: Download URL: " + download_url + debugp.ENDC);
+            print(debugp.COLOR + "Debug: Using download directory " + download_dir + debugp.ENDC);
 
         download_file = requests.get(download_url);
         file_path = download_dir + "/" + file_name;
         if self.debug:
-            print(debug.COLOR + "Debug: Trying to download file: " + file_path);
+            print(debugp.COLOR + "Debug: Trying to download file: " + file_path + debugp.ENDC);
         with open(file_path, "wb") as tar_file:
             tar_file.write(download_file.content);
 
@@ -183,7 +190,7 @@ class ventoyl:
             sys.exit("Error: Cannot find "+ file_path +"!");
         else:
             if self.debug:
-                print(debug.COLOR + "Latest Ventoy release v"+ latest_release +" successfully downloaded");
+                print(debugp.COLOR + "Latest Ventoy release v"+ latest_release +" successfully downloaded" + debugp.ENDC);
 
         if file_name.endswith(".tar.gz"):
             etar = tarfile.open(file_path, "r:gz");
@@ -204,7 +211,7 @@ class ventoyl:
             shell_installer = download_dir + "/ventoy-" + latest_release + "/Ventoy2Disk.sh";
             if os.path.isfile(shell_installer):
                 if self.debug:
-                    print( debug.COLOR + "Debug: Launch Ventoy Installer...");
+                    print(debugp.COLOR + "Debug: Launch Ventoy Installer..." + debugp.ENDC);
                     
                 cmd = shell_installer + " -i " + self.ventoy_device;
                 if force == True:
