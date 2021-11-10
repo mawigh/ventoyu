@@ -79,7 +79,7 @@ def main ():
 
     sinstall = subparser.add_parser("install", help="install new ISO images");
     sinstall.add_argument("-m", "--no-umount", dest="m", action="store_true", help="DO NOT umount Ventoy device after install");
-    sinstall.add_argument("-o", "--os", dest="os", help="short name of the OS you want to install (e.g. debian/manjaro)");
+    sinstall.add_argument("-o", "--os", dest="short_name", help="short name of the OS you want to install (e.g. debian/manjaro)");
     sinstall.add_argument("-f", "--file", dest="file", help="copy specified ISO file to your Ventoy device (just a cp)");
 
     sremove = subparser.add_parser("remove", help="remove an installed ISO image from your Ventoy device");
@@ -142,9 +142,12 @@ def main ():
         print_stats();
     if args.command == "install":
         umount = True;
+        short_name = "";
         if args.m:
             umount = False;
-        install(umount);
+        if args.short_name:
+            short_name = args.short_name;
+        install(umount, short_name);
     if args.command == "list":
         listfiles();
     if args.command == "update":
@@ -216,16 +219,27 @@ def grequest (url):
     rval = requests.get(url).text;
     rqueue.put(rval);
 
-def install(umount=True):
+def install(umount=True, short_name=""):
     
     json_iterator = 0;
     available_os = [];
-    for os in json_data:
-        print(bchar.BOLD + "[ID: "+ str(json_iterator) +"]"+bchar.ENDC+": " + bchar.OKGREEN + str(json_data[str(os)]["name"]) + bchar.ENDC)
-        available_os.append(os);
-        json_iterator += 1;
+
+    if short_name == "":    
+        for os in json_data:
+            print(bchar.BOLD + "[ID: "+ str(json_iterator) +"]"+bchar.ENDC+": " + bchar.OKGREEN + str(json_data[str(os)]["name"]) + bchar.ENDC)
+            available_os.append(os);
+            json_iterator += 1;
     
-    select_install_os = input("Which OS do you want to install? [0-"+str(json_iterator-1)+"]: ");
+        select_install_os = input("Which OS do you want to install? [0-"+str(json_iterator-1)+"]: ");
+    else:
+        for os in json_data:
+            available_os.append(os);
+        try:
+            select_install_os = str(available_os.index(str(short_name)));
+        except ValueError:
+            print(bchar.FAIL + "Error: Operating System " + bchar.BOLD + str(short_name) + bchar.ENDC + bchar.FAIL + " could not be found in your configuration file.\n"+bchar.HEADER+"Available are following:" + bchar.ENDC);
+            print(", ".join([os for os in json_data]));
+            sys.exit();
 
     try:
         try:
