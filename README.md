@@ -9,6 +9,19 @@
                           /____/          
 </pre>
 
+
+Ventoy is a tool that allows you to create a bootable USB drive for multiple ISO files.
+Just copy your ISO files onto the drive and boot it.
+
+Ventoy Updater is a utility that can be used to install or even update ISO files on the USB drive.
+Besides ventoyu also contains features like set up a new USB drive with the Ventoy software, manage ISO sources or modify Ventoy attributes on your USB drive. 
+
+ventoyu contains a configuration file (JSON format) with all sources where ISO files can be downloaded.
+
+The ventoyl class can help you to talk to your Ventoy device. More information here: [Wiki: ventoyLIB](https://github.com/mawigh/ventoyu/wiki/ventoyLIB)
+
+You will find more information about the Ventoy software here:
+
 Official Ventoy Website:
 https://www.ventoy.net/en/index.html
 
@@ -24,6 +37,7 @@ https://github.com/ventoy/Ventoy
   - [How to](#how-to)
     - [Install new images](#install-new-images)
     - [Add a new ISO download source](#add-a-new-iso-download-source)
+    - [Install or update Ventoy](#install-or-update-ventoy)
     - [Get help](#get-help)
 
 ---
