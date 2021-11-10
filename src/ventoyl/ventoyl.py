@@ -33,20 +33,20 @@ class ventoyl:
         if not isinstance(ventoy_device, str):
             if self.debug:
                  sys.stdout.write(debugp.COLOR + __name__ + ": Trying to find the Ventoy device.." + debugp.ENDC);
-            rc = self.find_ventoy_device();
+            rc = self.findVentoyDevice();
             if not rc == False:
                 if self.debug:
                     sys.stdout.write(debugp.COLOR + " Device found => " + str(rc["name"]) + debugp.ENDC);
                     print("");
             
-        rc = self.check_ventoy_mount();
+        rc = self.checkVentoyMount();
         if rc == -1:
             if isinstance(ventoy_device, str):
                 raise OSError("The specified Ventoy device could not be found on your system.");
 
-        self.mount_ventoy_device();
+        self.mountVentoyDevice();
             
-    def find_ventoy_device (self):
+    def findVentoyDevice (self):
 
         ls_blkd = shutil.which("lsblk");
         fdevice = "";
@@ -77,9 +77,9 @@ class ventoyl:
         else:
             return False;
 
-    def check_ventoy_mount (self):
+    def checkVentoyMount (self):
         if not self.ventoy_device:
-            self.find_ventoy_device();
+            self.findVentoyDevice();
 
         lsblk_out = subprocess.check_output(["lsblk","-Jnpo","name,mountpoint"]);
         json_parse = json.loads(lsblk_out);
@@ -90,6 +90,7 @@ class ventoyl:
                         if not child["mountpoint"] == None:
                             self.device_mounted = True;
                             self.temp_dir = child["mountpoint"];
+                            self.ventoy_config_dir = self.temp_dir + "/ventoy/";
                             return child["mountpoint"];
                         else:
                             return False;
@@ -98,11 +99,23 @@ class ventoyl:
         else:
             return False;
 
-    def mount_ventoy_device (self):
+    def getVentoyConfig (self):
+
+        if not self.isVentoyMounted():
+            self.mountVentoyDevice();
+
+        if not os.path.isdir(self.ventoy_config_dir):
+            return False;
+        
+        config_file = open(self.ventoy_config_dir + "/ventoy.json", "r");
+        if config_file:
+            return json.load(config_file);
+
+    def mountVentoyDevice (self):
         if not self.ventoy_device:
             return False;
         
-        if not self.is_ventoy_mounted():
+        if not self.isVentoyMounted():
             self.temp_dir = tempfile.mkdtemp();
             libc = ctypes.CDLL(ctypes.util.find_library("c"), use_errno=True);
             libc.mount.argtypes = (ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_ulong, ctypes.c_char_p);
@@ -114,8 +127,8 @@ class ventoyl:
             else:
                 self.device_mounted = True;
 
-    def umount_ventoy_device (self):
-        if not self.is_ventoy_mounted():
+    def umountVentoyDevice (self):
+        if not self.isVentoyMounted():
             return False;
 
         umount_cmd = shutil.which("umount");
@@ -125,17 +138,17 @@ class ventoyl:
         else:
             return False;
 
-    def is_ventoy_mounted (self):
+    def isVentoyMounted (self):
         if self.device_mounted:
             return True;
         else:
             return False;
 
-    def get_ventoy_mount_dir (self):
+    def getVentoyMountDir (self):
         if self.temp_dir:
             return self.temp_dir;
 
-    def get_iso_files (self, scan=False):
+    def getISOFiles (self, scan=False):
 
         if not self.ventoy_device:
             return False;
@@ -152,7 +165,7 @@ class ventoyl:
         else:
                 return False;
 
-    def delete_iso (self,iso_filename:str):
+    def deleteISO (self,iso_filename:str):
         if not self.ventoy_device:
             return False;
         if not self.device_mounted:
@@ -164,7 +177,7 @@ class ventoyl:
         except FileNotFoundError:
             return False;
 
-    def install_latest_Ventoy (self, gui=False, force=False):
+    def installLatestVentoy (self, gui=False, force=False):
 
         import platform;
 
@@ -224,6 +237,39 @@ class ventoyl:
             else:
                 sys.exit("Error: Cannot find Ventoy shell installer " + shell_installer);
 
+    def configureVentoyPlugin (self, plugintype=None):
+        
+        if not self.ventoy_device:
+            return False;
+        if not self.isVentoyMounted():
+            rc = self.mountVentoyDevice();
+            if rc == False:
+                return False;
 
+        test = self.getVentoyConfig();
 
+        if not os.path.isdir(self.ventoy_config_dir):
+            os.mkdir(self.ventoy_config_dir);
+            if self.debug:
+                print(debugp.COLOR + "Debug: Created Ventoy config directory: " + self.ventoy_config_dir + debugp.ENDC);
+            else:
+                return False;
+
+        available_types = ["theme"];
+
+        if not plugintype in available_types:
+            if self.debug:
+                print(debugp.COLOR + "Debug: Plugintype "+str(plugintype)+" is not avaiable!" + debugp.ENDC);
+            return False;
+
+        if plugintype == "theme":
+            #if not os.path.isfile(self.ventoy_config_dir + "/ventoy.json"):
+            passed_arguments = {"theme": {"file": "", "gfxmode": ""}};
+
+            
+            for argument, value in passed_arguments[str(plugintype)].items():
+                print("Needed value for: " + str(argument));
+                qarg = input(str(argument) + ": ");
+                passed_arguments.update({"theme": { str(argument): str(qarg)}});
+                print(passed_arguments);
 

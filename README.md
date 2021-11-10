@@ -18,7 +18,7 @@ Besides ventoyu also contains features like set up a new USB drive with the Vent
 
 ventoyu contains a configuration file (JSON format) with all sources where ISO files can be downloaded.
 
-The __ventoyl__ class can help you to talk to your Ventoy device. More information here: [Wiki: ventoyLIB](https://github.com/mawigh/ventoyu/wiki/ventoyLIB)
+The __ventoyl__ class can help you to talk to your Ventoy device using Python. More information here: [Wiki: ventoyLIB](https://github.com/mawigh/ventoyu/wiki/ventoyLIB)
 
 ---
 
