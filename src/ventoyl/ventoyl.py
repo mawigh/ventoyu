@@ -30,21 +30,30 @@ class ventoyl:
         self.device_mounted = False;
         self.debug = debug;
 
+        self.log_file = os.path.dirname(__file__) + "/ventoyl.log";
+        if self.debug == True:
+            loglevel = logging.DEBUG;
+        else:
+            loglevel = logging.INFO;
+
+        logging.basicConfig(filename=self.log_file, format="[%(levelname)s - %(asctime)s] %(filename)s - %(funcName)s: %(message)s", encoding="utf-8", level=loglevel);
+
         if not isinstance(ventoy_device, str):
-            if self.debug:
-                 sys.stdout.write(debugp.COLOR + __name__ + ": Trying to find the Ventoy device.." + debugp.ENDC);
             rc = self.findVentoyDevice();
             if not rc == False:
-                if self.debug:
-                    sys.stdout.write(debugp.COLOR + " Device found => " + str(rc["name"]) + debugp.ENDC);
-                    print("");
+                logging.info("Found the Ventoy device: " + str(rc["name"]));
             
         rc = self.checkVentoyMount();
         if rc == -1:
             if isinstance(ventoy_device, str):
+                logging.error("The specified Ventoy device ("+str(ventoy_device)+") could not be found on your system.");
                 raise OSError("The specified Ventoy device could not be found on your system.");
 
-        self.mountVentoyDevice();
+        try:
+            self.mountVentoyDevice();
+        except:
+            if isinstance(self.ventoy_device, str):
+                logging.debug("The specified device ("+str(self.ventoy_device)+") could not be found.");
             
     def findVentoyDevice (self):
 
@@ -85,6 +94,10 @@ class ventoyl:
         json_parse = json.loads(lsblk_out);
         if isinstance(json_parse, dict):
             for key in json_parse["blockdevices"]:
+                try:
+                    test = key["children"];
+                except KeyError:
+                    return False;
                 for child in key["children"]:
                     if re.search(str(self.ventoy_device), str(child["name"])):
                         if not child["mountpoint"] == None:
@@ -111,6 +124,13 @@ class ventoyl:
         if config_file:
             return json.load(config_file);
 
+    def getVentoylLogFile (self):
+        
+        if self.log_file:
+            return str(self.log_file);
+        else:
+            return False;
+
     def mountVentoyDevice (self):
         if not self.ventoy_device:
             return False;
@@ -122,10 +142,12 @@ class ventoyl:
 
             return_val = libc.mount(str(self.ventoy_device).encode(), str(self.temp_dir).encode(), str(self.ventoy_devicefs).encode(), 0, "rw".encode());
             if return_val < 0:
-                error = ctypes.get_errno();
-                raise OSError(error, "Error mounting Ventoy device "+ str(self.ventoy_device) +" on "+ str(self.temp_dir) +": " + os.strerror(error));
+                logging.error("Could not mount your Ventoy device "+str(self.ventoy_device)+"!");
+                return False;
             else:
+                logging.info("Successfully mounted Ventoy device "+str(self.ventoy_device)+" on " + str(self.temp_dir));
                 self.device_mounted = True;
+                return True;
 
     def umountVentoyDevice (self):
         if not self.isVentoyMounted():
@@ -134,8 +156,10 @@ class ventoyl:
         umount_cmd = shutil.which("umount");
         rc = os.system(umount_cmd + " " + self.ventoy_device);
         if rc == 0:
+            logging.info("Successfully umounted Ventoy device "+str(self.ventoy_device)+"!");
             return True;
         else:
+            logging.error("Error trying to umount your Ventoy device "+str(self.ventoy_device)+"!");
             return False;
 
     def isVentoyMounted (self):
@@ -151,9 +175,9 @@ class ventoyl:
     def getISOFiles (self, scan=False):
 
         if not self.ventoy_device:
-            return False;
+            return [];
         if not self.device_mounted:
-            return False;
+            return [];
     
         if self.temp_dir:
             for f in os.listdir(self.temp_dir):
@@ -163,7 +187,7 @@ class ventoyl:
         if len(self.iso_images) >= 1:
                 return self.iso_images;
         else:
-                return False;
+                return [];
 
     def deleteISO (self,iso_filename:str):
         if not self.ventoy_device:
@@ -173,6 +197,7 @@ class ventoyl:
 
         try:
             remove_iso = os.remove(iso_filename);
+            logging.info("Successfully deleted ISO file "+str(iso_filename));
             return True;
         except FileNotFoundError:
             return False;
@@ -180,9 +205,6 @@ class ventoyl:
     def installLatestVentoy (self, gui=False, force=False):
 
         import platform;
-
-        if not self.ventoy_device:
-            return False;
 
         latest_release = requests.get(self._Ventoy_git_releases);
         latest_release = latest_release.json();
@@ -192,22 +214,18 @@ class ventoyl:
         file_name = download_url.split("/")[-1];
 
         download_dir = tempfile.mkdtemp();
-        if self.debug:
-            print(debugp.COLOR + "Debug: Download URL: " + download_url + debugp.ENDC);
-            print(debugp.COLOR + "Debug: Using download directory " + download_dir + debugp.ENDC);
+        logging.debug("Download "+download_url+" to directory "+download_dir);
 
         download_file = requests.get(download_url);
         file_path = download_dir + "/" + file_name;
-        if self.debug:
-            print(debugp.COLOR + "Debug: Trying to download file: " + file_path + debugp.ENDC);
         with open(file_path, "wb") as tar_file:
             tar_file.write(download_file.content);
 
         if not os.path.isfile(file_path):
+            logging.error("Cannot find file "+file_path+"!");
             sys.exit("Error: Cannot find "+ file_path +"!");
         else:
-            if self.debug:
-                print(debugp.COLOR + "Latest Ventoy release v"+ latest_release +" successfully downloaded" + debugp.ENDC);
+            logging.debug("Latest Ventoy release v"+ latest_release +" successfully downloaded");
 
         if file_name.endswith(".tar.gz"):
             etar = tarfile.open(file_path, "r:gz");
@@ -223,19 +241,20 @@ class ventoyl:
             if os.path.isfile(gui_installer_path):
                 os.system(gui_installer_path);
             else:
-                sys.exit("Error: Cannot find GUI installer " + gui_installer_path);
+                logging.error("Cannot find the GUI installer ("+gui_installer_path+"). You may want to creat an issue on https://github.com/mawigh/ventoyu/issues");
+                return False;
         else:
             shell_installer = download_dir + "/ventoy-" + latest_release + "/Ventoy2Disk.sh";
             if os.path.isfile(shell_installer):
-                if self.debug:
-                    print(debugp.COLOR + "Debug: Launch Ventoy Installer..." + debugp.ENDC);
+                logging.debug("Launching the Ventoy Shell Installer "+shell_installer+"...");
                     
                 cmd = shell_installer + " -i " + self.ventoy_device;
                 if force == True:
                     cmd = shell_installer + " -I " + self.ventoy_device;
                 os.system(cmd);
             else:
-                sys.exit("Error: Cannot find Ventoy shell installer " + shell_installer);
+                logging.error("Cannot find the Ventoy shell installer " + shell_installer);
+                return False;
 
     def configureVentoyPlugin (self, plugintype=None):
         
@@ -250,22 +269,17 @@ class ventoyl:
 
         if not os.path.isdir(self.ventoy_config_dir):
             os.mkdir(self.ventoy_config_dir);
-            if self.debug:
-                print(debugp.COLOR + "Debug: Created Ventoy config directory: " + self.ventoy_config_dir + debugp.ENDC);
-            else:
-                return False;
+            logging.debug("Created Ventoy config directory: " + self.ventoy_config_dir);
 
         available_types = ["theme"];
 
         if not plugintype in available_types:
-            if self.debug:
-                print(debugp.COLOR + "Debug: Plugintype "+str(plugintype)+" is not avaiable!" + debugp.ENDC);
+            logging.error("Plugintype "+str(plugintype)+" is not available!");
             return False;
 
         if plugintype == "theme":
             #if not os.path.isfile(self.ventoy_config_dir + "/ventoy.json"):
             passed_arguments = {"theme": {"file": "", "gfxmode": ""}};
-
             
             for argument, value in passed_arguments[str(plugintype)].items():
                 print("Needed value for: " + str(argument));

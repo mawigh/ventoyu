@@ -115,6 +115,9 @@ def main ():
     smodifytheme = smodifysubparser.add_parser("theme", help="Changing a Ventoy theme");
     smodifytheme.add_argument("-l", "--list", action="store_true", help="list available themes (grub2)");
 
+    slastlog = subparser.add_parser("lastlog", help="Output the last (10 lines) log information ("+str(etcdir)+"/ventoyl.log)");
+    slastlog.add_argument("-l", "--lines", help="Specify how may lines should be printed to the output (default is 10 lines)");
+
     args = parser.parse_args();
 
     url_file = open(etcdir + "/url_config.json", "r");
@@ -139,11 +142,11 @@ def main ():
     else:
         ventoy = ventoyl.ventoyl(None, verbose_mode);
 
-    if ventoy:
-        if not ventoy.ventoy_device:
-            sys.exit( bchar.FAIL + "Error: No Ventoy device found. Plug in your Ventoy device or specify it explicity with --device");
-    else:
-        sys.exit( bchar.FAIL + "Error: Are you sure your specified Ventoy device ("+str(args.device)+") exists? Please have a look.");
+    #if ventoy:
+    #    if not ventoy.ventoy_device:
+    #        sys.exit( bchar.FAIL + "Error: No Ventoy device found. Plug in your Ventoy device or specify it explicity with --device");
+    #else:
+    #    sys.exit( bchar.FAIL + "Error: Are you sure your specified Ventoy device ("+str(args.device)+") exists? Please have a look.");
     if args.command == "stats":
         print_stats();
     if args.command == "install":
@@ -185,8 +188,9 @@ def main ():
 
         addurl(newurl, s_name, l_name);
     if args.command == "config":
-        subaction = args.modifycommand;
+        subaction = "";
         if args.configcommand == "modify":
+            subaction = args.modifycommand;
             action = "modify";
         if args.configcommand == "install":
             if not args.device and not args.gui:
@@ -198,6 +202,11 @@ def main ():
             sconfig.print_help();
             sys.exit();
         config(action, args.force, subaction);
+    if args.command == "lastlog":
+        nlines = 10;
+        if args.lines:
+            nlines = args.lines;
+        output_lastlog(nlines);
     if not args.command:
         print_stats();
         listfiles();
@@ -449,7 +458,8 @@ def listfiles ():
         if verbose_mode:
             print("\nYou can use the index numbers to run an action (e.g. update or remove)");
     else:
-        sys.exit(bchar.WARNING + "Warning:\nNo ISO images on your Ventoy device ("+ventoy.ventoy_device+") found.\nMaybe its not a valid Ventoy device?");
+        print(bchar.WARNING + bchar.UNDERLINE + "Warning:"+bchar.ENDC + bchar.WARNING + "\nNo ISO images on your Ventoy device ("+ventoy.ventoy_device+") found. Maybe its not a valid Ventoy device?" + bchar.ENDC);
+        print(bchar.HEADER + "Use following command to install ISO images: " + bchar.ENDC + bchar.BOLD + "\nsudo ventoyu install" +bchar.ENDC);
 
 def addurl (url, sname, lname):
 
@@ -486,7 +496,6 @@ def config (action, force=False, subaction=""):
 
     if action == "modify":
         ventoy.configureVentoyPlugin(subaction);
-
     if action == "install":
         print(bchar.HEADER + "Download latest Ventoy tarball to temp directory.. Trying to open the installer..." + bchar.ENDC);
         ventoy.installLatestVentoy(False, force);
@@ -528,6 +537,14 @@ def update_iso ():
     if len(upgradable) < 1:
         sys.exit(bchar.FAIL + "Error: Could not found any upgradable images. Try run " + bchar.OKCYAN + bchar.BOLD + "sudo " + sys.argv[0].split("/")[-1] + " --verbose check-update"+bchar.ENDC + bchar.FAIL + " manually." + bchar.ENDC);
 
+def output_lastlog (num_lines=10):
+
+    log_file = ventoy.getVentoylLogFile();
+    if log_file:
+        rfile = open(log_file, "r");
+        lines = rfile.readlines();
+        for line in lines[-int(num_lines):]:
+            print(line.rstrip("\n"));
 
 ventoyu_ascii = bchar.OKBLUE + """
  _    __           __              __  __
