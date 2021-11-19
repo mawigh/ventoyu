@@ -73,7 +73,7 @@ def main ():
     parser.add_argument("--device", help="explicit specifiy a Ventoy device (e.g. sda1)");
     parser.add_argument("-v", "--verbose", dest="v", action="store_true", help="enable verbose mode");
     parser.add_argument("-l", "--no-logo", dest="l", action="store_true", help="disable Ventoy ASCII logo");
-    parser.add_argument("-V", "--version", action="version", version="%(prog)s 0.2");
+    parser.add_argument("-V", "--version", action="version", version="%(prog)s 0.4");
 
     subparser = parser.add_subparsers(dest="command");
 

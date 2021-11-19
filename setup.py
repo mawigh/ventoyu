@@ -8,7 +8,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="ventoyu",
-    version="0.3",
+    version="0.4",
     author="Marcel-Brian Wilkowsky",
     author_email="marcel.wilkowsky@hotmail.de",
     description="Manage and update ISO files on Ventoy devices",
