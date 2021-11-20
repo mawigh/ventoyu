@@ -112,17 +112,42 @@ class ventoyl:
         else:
             return False;
 
+    def createVentoyConfig (self):
+
+        if not self.isVentoyMounted():
+            rc = self.mountVentoyDevice();
+            if rc == False:
+                logging.error("Failed to mount your Ventoy drive!");
+                return False;
+
+        if not os.path.isdir(self.ventoy_config_dir):
+            os.mkdir(self.ventoy_config_dir);
+
+        if not os.path.isfile(self.ventoy_config_dir + "/ventoy.json"):
+            new_file = open(self.ventoy_config_dir + "/ventoy.json", "w");
+            new_file.write("{}");
+            new_file.close();
+
     def getVentoyConfig (self):
 
         if not self.isVentoyMounted():
             self.mountVentoyDevice();
 
         if not os.path.isdir(self.ventoy_config_dir):
-            return False;
+            logging.error("The Ventoy config directory does not exists. Maybe you want to create it with createVentoyConfig()?");
+            return -1;
+        if not os.path.isfile(self.ventoy_config_dir + "/ventoy.json"):
+            logging.error("The Ventoy config file does not exists. Maybe you want to create it with createVentoyConfig()?");
+            return -1;
         
         config_file = open(self.ventoy_config_dir + "/ventoy.json", "r");
         if config_file:
-            return json.load(config_file);
+            try:
+                jl = json.load(config_file);
+                return jl;
+            except json.decoder.JSONDecodeError:
+                logging.error("Could not parse the Ventoy config file " + str(config_file));
+                return False;
 
     def getVentoylLogFile (self):
         
@@ -256,34 +281,48 @@ class ventoyl:
                 logging.error("Cannot find the Ventoy shell installer " + shell_installer);
                 return False;
 
-    def configureVentoyPlugin (self, plugintype=None):
-        
-        if not self.ventoy_device:
+    def getPossiblePlugins (self):
+        ventoyPlugins = ["theme", "image_list"];
+        return ventoyPlugins;
+
+    def getPossiblePluginOptions (self, plugin:str):
+
+        ventoyPlugins = {"theme": ["file", "gfxmode", "display_mode", "serial_param", "ventoy_left", "ventoy_top", "ventoy_color", "fonts"]};
+        if not plugin in ventoyPlugins:
             return False;
+
+        return ventoyPlugins[plugin];
+
+
+    def configureVentoyPlugin (self, plugintype=None, pluginoptions=False):
+
         if not self.isVentoyMounted():
             rc = self.mountVentoyDevice();
             if rc == False:
+                logging.error("Could not mount Ventoy drive! Maybe you should plug it in?");
                 return False;
 
-        test = self.getVentoyConfig();
-
-        if not os.path.isdir(self.ventoy_config_dir):
-            os.mkdir(self.ventoy_config_dir);
-            logging.debug("Created Ventoy config directory: " + self.ventoy_config_dir);
-
-        available_types = ["theme"];
-
-        if not plugintype in available_types:
-            logging.error("Plugintype "+str(plugintype)+" is not available!");
+        vconfig = self.getVentoyConfig();
+        if vconfig == -1:
+            self.createVentoyConfig();
+            vconfig = self.getVentoyConfig();
+        elif vconfig == False:
+            return False;
+        if not plugintype in self.getPossiblePlugins():
             return False;
 
-        if plugintype == "theme":
-            #if not os.path.isfile(self.ventoy_config_dir + "/ventoy.json"):
-            passed_arguments = {"theme": {"file": "", "gfxmode": ""}};
-            
-            for argument, value in passed_arguments[str(plugintype)].items():
-                print("Needed value for: " + str(argument));
-                qarg = input(str(argument) + ": ");
-                passed_arguments.update({"theme": { str(argument): str(qarg)}});
-                print(passed_arguments);
+        new_plugin_config = {
+            str(plugintype): {
+            }
+        }; 
+        
+        for option, value in pluginoptions.items():
+            new_plugin_config[str(plugintype)].update({str(option): str(value)});
+
+        vconfig.update(new_plugin_config);
+        with open(str(self.ventoy_config_dir) + "/ventoy.json", "w") as ventoyconfig:
+            json.dump(vconfig, ventoyconfig, indent=4);
+
+        print(vconfig);
+
 

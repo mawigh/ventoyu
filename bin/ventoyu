@@ -112,8 +112,7 @@ def main ():
 
     smodifysubparser = sconfigmodify.add_subparsers(dest="modifycommand");
 
-    smodifytheme = smodifysubparser.add_parser("theme", help="Changing a Ventoy theme");
-    smodifytheme.add_argument("-l", "--list", action="store_true", help="list available themes (grub2)");
+    smodifytheme = smodifysubparser.add_parser("theme", description="Install GRUB Themes to your Ventoy drive", help="Changing a Ventoy theme");
 
     slastlog = subparser.add_parser("lastlog", help="Output the last (10 lines) log information ("+str(etcdir)+"/ventoyl.log)");
     slastlog.add_argument("-l", "--lines", help="Specify how may lines should be printed to the output (default is 10 lines)");
@@ -495,7 +494,19 @@ def addurl (url, sname, lname):
 def config (action, force=False, subaction=""):
 
     if action == "modify":
-        ventoy.configureVentoyPlugin(subaction);
+        options = ventoy.getPossiblePluginOptions(subaction);
+
+        print(bchar.HEADER + "You need to provide following values: " + bchar.UNDERLINE + str(options) + bchar.ENDC);
+        print(bchar.OKBLUE + "If you do not want to set a given option, just leave it empty!" + bchar.ENDC);
+        newopts = {};
+
+        for option in options:
+            optval = input(str(option) + ": ");
+            newopts.update({str(option): str(optval)});
+
+        rc = ventoy.configureVentoyPlugin(subaction, newopts);
+        if rc == False:
+            print(bchar.FAIL +  "Error: See the ventoyl log information for details. ("+bchar.OKCYAN+"sudo ventoyu lastlog"+bchar.FAIL+")" + bchar.ENDC);
     if action == "install":
         print(bchar.HEADER + "Download latest Ventoy tarball to temp directory.. Trying to open the installer..." + bchar.ENDC);
         ventoy.installLatestVentoy(False, force);
